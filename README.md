@@ -1,3 +1,3 @@
 # linux-kernel-code-project
 
-- Kernel Version: `5.4.214`
+- Kernel Code Version: `5.4.214`
