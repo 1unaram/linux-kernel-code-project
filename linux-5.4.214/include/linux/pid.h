@@ -6,6 +6,10 @@
 #include <linux/wait.h>
 #include <linux/refcount.h>
 
+#ifdef CONFIG_PID_SKIPLIST
+#include <linux/pid_skiplist.h>
+#endif
+
 enum pid_type
 {
 	PIDTYPE_PID,

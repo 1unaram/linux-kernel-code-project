@@ -12,6 +12,10 @@
 #include <linux/ns_common.h>
 #include <linux/idr.h>
 
+#ifdef CONFIG_PID_SKIPLIST
+#include <linux/pid_skiplist.h>
+#endif
+
 
 struct fs_pin;
 
@@ -23,7 +27,14 @@ enum { /* definitions for pid_namespace's hide_pid field */
 
 struct pid_namespace {
 	struct kref kref;
+
+	// idr -> skiplist
+	#ifdef CONFIG_PID_SKIPLIST
+	struct pid_skiplist pid_sl;
+	#else
 	struct idr idr;
+	#endif
+
 	struct rcu_head rcu;
 	unsigned int pid_allocated;
 	struct task_struct *child_reaper;

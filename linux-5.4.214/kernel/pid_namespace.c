@@ -100,7 +100,11 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	if (ns == NULL)
 		goto out_dec;
 
-	idr_init(&ns->idr);
+#ifndef CONFIG_PID_SKIPLIST
+    idr_init(&ns->idr);
+#else
+    pid_skiplist_init(&ns->pid_sl, GFP_KERNEL);
+#endif
 
 	ns->pid_cachep = create_pid_cachep(level);
 	if (ns->pid_cachep == NULL)

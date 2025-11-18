@@ -43,6 +43,10 @@
 #include <linux/sched/task.h>
 #include <linux/idr.h>
 
+#ifdef CONFIG_PID_SKIPLIST
+#include <linux/pid_skiplist.h>
+#endif
+
 struct pid init_struct_pid = {
 	.count		= REFCOUNT_INIT(1),
 	.tasks		= {
@@ -72,7 +76,9 @@ int pid_max_max = PID_MAX_LIMIT;
  */
 struct pid_namespace init_pid_ns = {
 	.kref = KREF_INIT(2),
+#ifndef CONFIG_PID_SKIPLIST
 	.idr = IDR_INIT(init_pid_ns.idr),
+#endif
 	.pid_allocated = PIDNS_ADDING,
 	.level = 0,
 	.child_reaper = &init_task,
@@ -121,6 +127,8 @@ static void delayed_put_pid(struct rcu_head *rhp)
 	put_pid(pid);
 }
 
+
+// 수정 대상 함수
 void free_pid(struct pid *pid)
 {
 	/* We can be called with write_lock_irq(&tasklist_lock) held */
@@ -157,6 +165,7 @@ void free_pid(struct pid *pid)
 	call_rcu(&pid->rcu, delayed_put_pid);
 }
 
+// 수정 대상 함수
 struct pid *alloc_pid(struct pid_namespace *ns)
 {
 	struct pid *pid;
@@ -258,6 +267,7 @@ void disable_pid_allocation(struct pid_namespace *ns)
 	spin_unlock_irq(&pidmap_lock);
 }
 
+// 수정 대상 함수
 struct pid *find_pid_ns(int nr, struct pid_namespace *ns)
 {
 	return idr_find(&ns->idr, nr);
@@ -533,7 +543,11 @@ void __init pid_idr_init(void)
 				PIDS_PER_CPU_MIN * num_possible_cpus());
 	pr_info("pid_max: default: %u minimum: %u\n", pid_max, pid_max_min);
 
-	idr_init(&init_pid_ns.idr);
+#ifndef CONFIG_PID_SKIPLIST
+    idr_init(&init_pid_ns.idr);
+#else
+    pid_skiplist_init(&init_pid_ns.pid_sl, GFP_KERNEL);
+#endif
 
 	init_pid_ns.pid_cachep = KMEM_CACHE(pid,
 			SLAB_HWCACHE_ALIGN | SLAB_PANIC | SLAB_ACCOUNT);
