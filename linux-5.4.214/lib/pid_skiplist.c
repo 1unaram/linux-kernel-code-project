@@ -155,3 +155,33 @@ void pid_skiplist_remove(struct pid_skiplist *sl, int key)
 	kfree(x->forward);
 	kfree(x);
 }
+
+/* RCU 안전한 순회: 시작 key 이후의 모든 항목 순회 */
+struct pid *pid_skiplist_iter_next_rcu(const struct pid_skiplist *sl,
+                                        struct pid_sl_node **cursor,
+                                        int start_key)
+{
+    const struct pid_sl_node *node;
+
+    if (!*cursor) {
+        /* 첫 호출: start_key 이상의 첫 노드 찾기 */
+        node = sl->header;
+        for (;;) {
+            node = READ_ONCE(node->forward[0]);
+            if (!node)
+                return NULL;
+            if (node->key >= start_key) {
+                *cursor = (struct pid_sl_node *)node;
+                return READ_ONCE(node->pid);
+            }
+        }
+    }
+
+    /* 다음 노드로 이동 */
+    node = READ_ONCE((*cursor)->forward[0]);
+    if (!node)
+        return NULL;
+
+    *cursor = (struct pid_sl_node *)node;
+    return READ_ONCE(node->pid);
+}
