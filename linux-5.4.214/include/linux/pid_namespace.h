@@ -29,11 +29,12 @@ struct pid_namespace {
 	struct kref kref;
 
 	// idr -> skiplist
-	#ifdef CONFIG_PID_SKIPLIST
-	struct pid_skiplist pid_sl;
-	#else
+#ifndef CONFIG_PID_SKIPLIST
 	struct idr idr;
-	#endif
+#else
+	struct pid_skiplist pid_sl;
+	int last_pid;  /* 마지막으로 할당된 PID (CHECKPOINT_RESTORE용) */
+#endif
 
 	struct rcu_head rcu;
 	unsigned int pid_allocated;

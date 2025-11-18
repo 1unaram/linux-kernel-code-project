@@ -104,6 +104,7 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
     idr_init(&ns->idr);
 #else
     pid_skiplist_init(&ns->pid_sl, GFP_KERNEL);
+	ns->last_pid = 0;
 #endif
 
 	ns->pid_cachep = create_pid_cachep(level);
@@ -126,7 +127,11 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	return ns;
 
 out_free_idr:
+#ifndef CONFIG_PID_SKIPLIST
 	idr_destroy(&ns->idr);
+#else
+	pid_skiplist_destroy(&ns->pid_sl);
+#endif
 	kmem_cache_free(pid_ns_cachep, ns);
 out_dec:
 	dec_pid_namespaces(ucounts);
@@ -148,7 +153,11 @@ static void destroy_pid_namespace(struct pid_namespace *ns)
 {
 	ns_free_inum(&ns->ns);
 
+#ifndef CONFIG_PID_SKIPLIST
 	idr_destroy(&ns->idr);
+#else
+	pid_skiplist_destroy(&ns->pid_sl);
+#endif
 	call_rcu(&ns->rcu, delayed_free_pidns);
 }
 
@@ -219,11 +228,25 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	rcu_read_lock();
 	read_lock(&tasklist_lock);
 	nr = 2;
+
+	/*
+		PID namespace 종료 시 속한 모든 프로세스에 SIGKILL 신호 전송
+		nr(=2)부터 시작해서 모든 PID 엔트리를 순회
+	*/
+#ifndef CONFIG_PID_SKIPLIST
 	idr_for_each_entry_continue(&pid_ns->idr, pid, nr) {
 		task = pid_task(pid, PIDTYPE_PID);
 		if (task && !__fatal_signal_pending(task))
 			group_send_sig_info(SIGKILL, SEND_SIG_PRIV, task, PIDTYPE_MAX);
 	}
+#else
+	struct pid_sl_node *cursor = NULL;
+	while((pid = pid_skiplist_iter_next_rcu(&pid_ns->pid_sl, &cursor, nr)) != NULL) {
+		task = pid_task(pid, PIDTYPE_PID);
+		if (task && !__fatal_signal_pending(task))
+			group_send_sig_info(SIGKILL, SEND_SIG_PRIV, task, PIDTYPE_MAX);
+	}
+#endif
 	read_unlock(&tasklist_lock);
 	rcu_read_unlock();
 
@@ -285,12 +308,24 @@ static int pid_ns_ctl_handler(struct ctl_table *table, int write,
 	 * it should synchronize its usage with external means.
 	 */
 
-	next = idr_get_cursor(&pid_ns->idr) - 1;
+
+	/*
+	CHECKPOINT_RESTORE 기능에서 마지막으로 할당된 PID 값을 읽고 쓰는 부분
+	*/
+#ifndef CONFIG_PID_SKIPLIST
+	next = idr_get_cursor(&pid_ns->idr) - 1; // IDR의 현재 커서 위치(다음에 할당될 PID) 가져오기
 
 	tmp.data = &next;
 	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
 	if (!ret && write)
-		idr_set_cursor(&pid_ns->idr, next + 1);
+		idr_set_cursor(&pid_ns->idr, next + 1); // IDR의 커서 위치를 설정하여 다음 PID 할당 위치 조정
+#else
+	next = READ_ONCE(pid_ns->last_pid);
+	tmp.data = &next;
+	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	if (!ret && write)
+		WRITE_ONCE(pid_ns->last_pid, next);
+#endif
 
 	return ret;
 }
