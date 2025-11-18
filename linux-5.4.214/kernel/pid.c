@@ -158,6 +158,7 @@ void free_pid(struct pid *pid)
 			break;
 		}
 
+		//
 		idr_remove(&ns->idr, upid->nr);
 	}
 	spin_unlock_irqrestore(&pidmap_lock, flags);
@@ -175,18 +176,26 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	struct upid *upid;
 	int retval = -ENOMEM;
 
+	/*
+		1. struct pid 객체 할당 (idr 관련 없음)
+	*/
 	pid = kmem_cache_alloc(ns->pid_cachep, GFP_KERNEL);
 	if (!pid)
 		return ERR_PTR(retval);
 
 	tmp = ns;
-	pid->level = ns->level;
+	pid->level = ns->level; // 현재 pid가 속한 최상위 네임스페이스의 레벨 설정
 
+	/*
+		2. 각 네임스페이스 레벨별로 PID 할당
+		바깥쪽 네임스페이스부터 시작하여 안쪽 네임스페이스까지 PID 번호를 하나씩 예약
+	*/
 	for (i = ns->level; i >= 0; i--) {
 		int pid_min = 1;
 
-		idr_preload(GFP_KERNEL);
-		spin_lock_irq(&pidmap_lock);
+#ifndef CONFIG_PID_SKIPLIST
+		idr_preload(GFP_KERNEL); // IDR 내부에서 할당에 필요한 메모리를 미리 잡아두는 preloading (락 잡기 전).
+		spin_lock_irq(&pidmap_lock); // PID 번호 할당 전체를 보호하는 global spin lock 획득
 
 		/*
 		 * init really needs pid 1, but after reaching the maximum
@@ -200,20 +209,65 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 		 * a partially initialized PID (see below).
 		 */
 		nr = idr_alloc_cyclic(&tmp->idr, NULL, pid_min,
-				      pid_max, GFP_ATOMIC);
+				      pid_max, GFP_ATOMIC); // 포인터 값으로 NULL을 넣어서 “ID만” 예약. 이렇게 하면 find_pid_ns()가 아직 초기화되지 않은 PID를 보지 못하도록 함.
 		spin_unlock_irq(&pidmap_lock);
 		idr_preload_end();
+#else
+        /* SkipList 순환 할당 */ // *checkpoint*
+		spin_lock_irq(&pidmap_lock);
 
+        int start_pid = READ_ONCE(tmp->last_pid) + 1;
+        if (start_pid > RESERVED_PIDS)
+            pid_min = RESERVED_PIDS;
+
+        if (start_pid < pid_min || start_pid >= pid_max)
+            start_pid = pid_min;
+
+        nr = -ENOSPC;
+
+        /* start_pid부터 pid_max까지 검색 */
+        for (int scan = start_pid; scan < pid_max; scan++) {
+            if (!pid_skiplist_lookup_rcu(&tmp->pid_sl, scan)) {
+                retval = pid_skiplist_insert(&tmp->pid_sl, scan, NULL, GFP_ATOMIC);
+                if (retval == 0) {
+                    nr = scan;
+                    WRITE_ONCE(tmp->last_pid, scan);
+                    break;
+                }
+            }
+        }
+
+        /* wrap around: pid_min부터 start_pid 전까지 검색 */
+        if (nr < 0) {
+            for (int scan = pid_min; scan < start_pid; scan++) {
+                if (!pid_skiplist_lookup_rcu(&tmp->pid_sl, scan)) {
+                    retval = pid_skiplist_insert(&tmp->pid_sl, scan, NULL, GFP_ATOMIC);
+                    if (retval == 0) {
+                        nr = scan;
+                        WRITE_ONCE(tmp->last_pid, scan);
+                        break;
+                    }
+                }
+            }
+        }
+
+        spin_unlock_irq(&pidmap_lock);
+#endif
+		// 예약 실패 처리
 		if (nr < 0) {
 			retval = (nr == -ENOSPC) ? -EAGAIN : nr;
 			goto out_free;
 		}
 
-		pid->numbers[i].nr = nr;
-		pid->numbers[i].ns = tmp;
+		// 예약 성공 처리
+		pid->numbers[i].nr = nr; // 이 레벨에서의 숫자 PID
+		pid->numbers[i].ns = tmp; // 이 레벨이 소속된 네임스페이스
 		tmp = tmp->parent;
 	}
 
+	/*
+		3. child reaper와 pid 객체 초기화 (idr 관련 없음)
+	*/
 	if (unlikely(is_child_reaper(pid))) {
 		if (pid_ns_prepare_proc(ns))
 			goto out_free;
@@ -226,36 +280,57 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 
 	init_waitqueue_head(&pid->wait_pidfd);
 
+
+	/*
+		4. IDR에 실제 struct pid *를 채워 넣는 단계
+	*/
 	upid = pid->numbers + ns->level;
 	spin_lock_irq(&pidmap_lock);
 	if (!(ns->pid_allocated & PIDNS_ADDING))
 		goto out_unlock;
 	for ( ; upid >= pid->numbers; --upid) {
 		/* Make the PID visible to find_pid_ns. */
+#ifndef CONFIG_PID_SKIPLIST
 		idr_replace(&upid->ns->idr, pid, upid->nr);
+#else
+		pid_skiplist_remove(&upid->ns->pid_sl, upid->nr); // *checkpoint*
+		pid_skiplist_insert(&upid->ns->pid_sl, upid->nr, pid, GFP_ATOMIC);
+#endif
 		upid->ns->pid_allocated++;
 	}
 	spin_unlock_irq(&pidmap_lock);
 
 	return pid;
 
-out_unlock:
+/*
+	5. 실패 경로: 롤백 로직
+*/
+out_unlock: // PINDS_ADDING 상태가 아니어서 할당 실패한 경우
 	spin_unlock_irq(&pidmap_lock);
 	put_pid_ns(ns);
 
-out_free:
+out_free: // idr_alloc_cyclic()에서 실패한 경우 -> 예약된 PID 번호 롤백
 	spin_lock_irq(&pidmap_lock);
 	while (++i <= ns->level) {
 		upid = pid->numbers + i;
+#ifndef CONFIG_PID_SKIPLIST
 		idr_remove(&upid->ns->idr, upid->nr);
+#else
+		pid_skiplist_remove(&upid->ns->pid_sl, upid->nr);
+#endif
 	}
 
 	/* On failure to allocate the first pid, reset the state */
 	if (ns->pid_allocated == PIDNS_ADDING)
-		idr_set_cursor(&ns->idr, 0);
+#ifndef CONFIG_PID_SKIPLIST
+		idr_set_cursor(&ns->idr, 0); // IDR 커서 리셋(PID 번호 재 시작)
+#else
+		WRITE_ONCE(ns->last_pid, 0);
+#endif
 
 	spin_unlock_irq(&pidmap_lock);
 
+	// struct pid 객체 해제
 	kmem_cache_free(ns->pid_cachep, pid);
 	return ERR_PTR(retval);
 }
