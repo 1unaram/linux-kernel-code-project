@@ -549,22 +549,7 @@ struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
 	return idr_get_next(&ns->idr, &nr);
 #else
 	/* SkipList에서 nr 이상의 첫 번째 PID 찾기 */
-    const struct pid_sl_node *node = ns->pid_sl.header;
-    struct pid *result = NULL;
-
-    rcu_read_lock();
-
-    /* 레벨 0에서 순차 검색: nr 이상인 첫 노드 */
-    while ((node = READ_ONCE(node->forward[0])) != NULL) {
-        if (node->key >= nr) {
-            result = READ_ONCE(node->pid);
-            break;
-        }
-    }
-
-    rcu_read_unlock();
-
-    return result;
+    return pid_skiplist_find_ge_rcu(&ns->pid_sl, nr);
 #endif
 }
 

@@ -1,3 +1,4 @@
+// include/linux/pid_skiplist.h
 #ifndef _LINUX_PID_SKIPLIST_H
 #define _LINUX_PID_SKIPLIST_H
 
@@ -20,7 +21,7 @@ struct pid_sl_node {
 struct pid_skiplist {
 	int level;
 	struct pid_sl_node *header;
-};
+} ____cacheline_aligned;
 
 #ifdef CONFIG_PID_SKIPLIST
 

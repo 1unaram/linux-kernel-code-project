@@ -6,16 +6,15 @@
 
 static int pid_sl_random_level(void)
 {
-	int level = 1;
+    int level = 1;
+    u32 random = prandom_u32();  // 빠른 pseudo-random
 
-	while (level < PID_SL_MAX_LEVEL) {
-		u8 r;
-		get_random_bytes(&r, 1);
-		if (r % PID_SL_P != 0)
-			break;
-		level++;
-	}
-	return level;
+    while (level < PID_SL_MAX_LEVEL &&
+           (random & ((1 << PID_SL_P) - 1)) == 0) {
+        random >>= PID_SL_P;
+        level++;
+    }
+    return level;
 }
 
 static struct pid_sl_node *pid_sl_node_alloc(int level, gfp_t gfp)
@@ -43,6 +42,8 @@ void pid_skiplist_init(struct pid_skiplist *sl, gfp_t gfp)
 
 	sl->level = 1;
 	sl->header = pid_sl_node_alloc(max, gfp | __GFP_NOFAIL);
+	if (WARN_ON(!sl->header))  // 커널 로그에 경고
+        return;
 	sl->header->key = INT_MIN;
 	sl->header->pid = NULL;
 }
@@ -50,6 +51,9 @@ void pid_skiplist_init(struct pid_skiplist *sl, gfp_t gfp)
 void pid_skiplist_destroy(struct pid_skiplist *sl)
 {
 	struct pid_sl_node *node, *next;
+
+	// RCU grace period 대기
+	synchronize_rcu();
 
 	node = sl->header->forward[0];
 	while (node) {
@@ -87,7 +91,7 @@ int pid_skiplist_insert(struct pid_skiplist *sl, int key,
 	if (lvl > sl->level) {
 		for (i = sl->level; i < lvl; i++)
 			update[i] = sl->header;
-		sl->level = lvl;
+		WRITE_ONCE(sl->level, lvl);
 	}
 
 	x = pid_sl_node_alloc(lvl, gfp);
@@ -109,21 +113,19 @@ int pid_skiplist_insert(struct pid_skiplist *sl, int key,
 /* RCU 읽기: 호출자는 rcu_read_lock() / rcu_read_unlock() 감싸야 함 */
 struct pid *pid_skiplist_lookup_rcu(const struct pid_skiplist *sl, int key)
 {
-	const struct pid_sl_node *x = sl->header;
-	int i;
+    const struct pid_sl_node *x = sl->header;
+    int i;
 
-	for (i = sl->level - 1; i >= 0; i--) {
-		const struct pid_sl_node *next;
-		for (;;) {
-			next = READ_ONCE(x->forward[i]);
-			if (!next || next->key > key)
-				break;
-			if (next->key == key)
-				return READ_ONCE(next->pid);
-			x = next;
-		}
-	}
-	return NULL;
+    for (i = sl->level - 1; i >= 0; i--) {
+        const struct pid_sl_node *next;
+        while ((next = READ_ONCE(x->forward[i])) != NULL && next->key < key)
+            x = next;
+
+        // 정확히 일치하는 키 발견
+        if (next && next->key == key)
+            return READ_ONCE(next->pid);
+    }
+    return NULL;
 }
 
 static void pid_sl_node_rcu_free(struct rcu_head *rcu)
@@ -139,6 +141,7 @@ void pid_skiplist_remove(struct pid_skiplist *sl, int key)
 	struct pid_sl_node *update[PID_SL_MAX_LEVEL];
 	struct pid_sl_node *x = sl->header;
 	int i;
+	int new_level = sl->level;
 
 	for (i = sl->level - 1; i >= 0; i--) {
 		while (x->forward[i] && x->forward[i]->key < key)
@@ -156,8 +159,11 @@ void pid_skiplist_remove(struct pid_skiplist *sl, int key)
 		WRITE_ONCE(update[i]->forward[i], x->forward[i]);
 	}
 
-	while (sl->level > 1 && !sl->header->forward[sl->level - 1])
-		sl->level--;
+	while (new_level > 1 && !READ_ONCE(sl->header->forward[new_level - 1]))
+		new_level--;
+
+	if (new_level != sl->level)
+		WRITE_ONCE(sl->level, new_level);
 
 	/* RCU로 free하고 싶다면 call_rcu 사용해도 됨 */
 	call_rcu(&x->rcu, pid_sl_node_rcu_free);
@@ -171,24 +177,58 @@ struct pid *pid_skiplist_iter_next_rcu(const struct pid_skiplist *sl,
     const struct pid_sl_node *node;
 
     if (!*cursor) {
-        /* 첫 호출: start_key 이상의 첫 노드 찾기 */
+        /* 첫 호출: start_key 이상의 첫 노드 찾기 (SkipList 활용) */
         node = sl->header;
-        for (;;) {
-            node = READ_ONCE(node->forward[0]);
-            if (!node)
-                return NULL;
-            if (node->key >= start_key) {
-                *cursor = (struct pid_sl_node *)node;
-                return READ_ONCE(node->pid);
+        int i;
+
+        /* 상위 레벨부터 탐색하여 빠르게 접근 */
+        for (i = sl->level - 1; i >= 0; i--) {
+            while (1) {
+                const struct pid_sl_node *next = READ_ONCE(node->forward[i]);
+                if (!next || next->key >= start_key)
+                    break;
+                node = next;
             }
         }
+
+        /* 레벨 0에서 start_key 이상의 첫 노드 */
+        node = READ_ONCE(node->forward[0]);
+        if (!node || node->key < start_key)
+            return NULL;
+
+        *cursor = (struct pid_sl_node *)node;
+        return READ_ONCE(node->pid);
     }
 
-    /* 다음 노드로 이동 */
+    /* 다음 노드로 이동 (레벨 0 순회) */
     node = READ_ONCE((*cursor)->forward[0]);
     if (!node)
         return NULL;
 
     *cursor = (struct pid_sl_node *)node;
+    return READ_ONCE(node->pid);
+}
+
+/* nr 이상의 첫 번째 노드 찾기 (SkipList 최적화) */
+struct pid *pid_skiplist_find_ge_rcu(const struct pid_skiplist *sl, int key)
+{
+    const struct pid_sl_node *node = sl->header;
+    int i;
+
+    /* 상위 레벨부터 탐색 */
+    for (i = sl->level - 1; i >= 0; i--) {
+        while (1) {
+            const struct pid_sl_node *next = READ_ONCE(node->forward[i]);
+            if (!next || next->key >= key)
+                break;
+            node = next;
+        }
+    }
+
+    /* 레벨 0에서 key 이상의 첫 노드 */
+    node = READ_ONCE(node->forward[0]);
+    if (!node)
+        return NULL;
+
     return READ_ONCE(node->pid);
 }
