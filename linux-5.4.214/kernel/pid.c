@@ -636,6 +636,7 @@ void __init pid_idr_init(void)
     idr_init(&init_pid_ns.idr);
 #else
     pid_skiplist_init(&init_pid_ns.pid_sl, GFP_KERNEL);
+	init_pid_ns.last_pid = 0;
 #endif
 
 	init_pid_ns.pid_cachep = KMEM_CACHE(pid,

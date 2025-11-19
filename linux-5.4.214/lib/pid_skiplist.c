@@ -19,33 +19,43 @@ static int pid_sl_random_level(void)
 
 static struct pid_sl_node *pid_sl_node_alloc(int level, gfp_t gfp)
 {
-	struct pid_sl_node *node;
+    struct pid_sl_node *node;
 
-	node = kzalloc(sizeof(*node), gfp);
-	if (!node)
-		return NULL;
+    // 부팅 초기나 atomic 컨텍스트를 고려한 플래그 조정
+    if (gfp & __GFP_NOFAIL) {
+        // NOFAIL이면 ATOMIC도 추가
+        gfp |= GFP_ATOMIC;
+    }
 
-	node->forward = kcalloc(level, sizeof(struct pid_sl_node *), gfp);
-	if (!node->forward) {
-		kfree(node);
-		return NULL;
-	}
+    node = kzalloc(sizeof(*node), gfp);
+    if (!node)
+        return NULL;
 
-	node->level = level;
-	return node;
+    node->forward = kcalloc(level, sizeof(struct pid_sl_node *), gfp);
+    if (!node->forward) {
+        kfree(node);
+        return NULL;
+    }
+
+    node->level = level;
+    return node;
 }
 
 // idr_init 대체 함수
 void pid_skiplist_init(struct pid_skiplist *sl, gfp_t gfp)
 {
-	int max = PID_SL_MAX_LEVEL;
+    int max = PID_SL_MAX_LEVEL;
 
-	sl->level = 1;
-	sl->header = pid_sl_node_alloc(max, gfp | __GFP_NOFAIL);
-	if (WARN_ON(!sl->header))  // 커널 로그에 경고
-        return;
-	sl->header->key = INT_MIN;
-	sl->header->pid = NULL;
+    sl->level = 1;
+    sl->header = pid_sl_node_alloc(max, gfp | __GFP_NOFAIL);
+    // __GFP_NOFAIL이므로 NULL이 나올 수 없음. 그래도 안전하게:
+    BUG_ON(!sl->header);  // 초기화 실패는 치명적이므로 BUG_ON 사용
+
+    sl->header->key = INT_MIN;
+    sl->header->pid = NULL;
+
+    // forward 포인터들도 NULL로 초기화 (kzalloc이 하지만 명시적으로)
+    memset(sl->header->forward, 0, max * sizeof(struct pid_sl_node *));
 }
 
 void pid_skiplist_destroy(struct pid_skiplist *sl)
@@ -114,17 +124,20 @@ int pid_skiplist_insert(struct pid_skiplist *sl, int key,
 struct pid *pid_skiplist_lookup_rcu(const struct pid_skiplist *sl, int key)
 {
     const struct pid_sl_node *x = sl->header;
+    const struct pid_sl_node *next;
     int i;
 
+    // 모든 레벨을 탐색하여 레벨 0까지 내려감
     for (i = sl->level - 1; i >= 0; i--) {
-        const struct pid_sl_node *next;
         while ((next = READ_ONCE(x->forward[i])) != NULL && next->key < key)
             x = next;
-
-        // 정확히 일치하는 키 발견
-        if (next && next->key == key)
-            return READ_ONCE(next->pid);
     }
+
+    // 레벨 0에서 다음 노드 확인
+    next = READ_ONCE(x->forward[0]);
+    if (next && next->key == key)
+        return READ_ONCE(next->pid);
+
     return NULL;
 }
 
@@ -175,6 +188,9 @@ struct pid *pid_skiplist_iter_next_rcu(const struct pid_skiplist *sl,
                                         int start_key)
 {
     const struct pid_sl_node *node;
+
+	if (!sl || !sl->header)
+        return NULL;
 
     if (!*cursor) {
         /* 첫 호출: start_key 이상의 첫 노드 찾기 (SkipList 활용) */
