@@ -158,8 +158,11 @@ void free_pid(struct pid *pid)
 			break;
 		}
 
-		//
+#ifndef CONFIG_PID_SKIPLIST
 		idr_remove(&ns->idr, upid->nr);
+#else
+		pid_skiplist_remove(&ns->pid_sl, upid->nr);
+#endif
 	}
 	spin_unlock_irqrestore(&pidmap_lock, flags);
 
@@ -344,7 +347,11 @@ void disable_pid_allocation(struct pid_namespace *ns)
 // 수정 대상 함수
 struct pid *find_pid_ns(int nr, struct pid_namespace *ns)
 {
+#ifndef CONFIG_PID_SKIPLIST
 	return idr_find(&ns->idr, nr);
+#else
+	return pid_skiplist_lookup_rcu(&ns->pid_sl, nr);
+#endif
 }
 EXPORT_SYMBOL_GPL(find_pid_ns);
 
@@ -533,9 +540,32 @@ EXPORT_SYMBOL_GPL(task_active_pid_ns);
  *
  * If there is a pid at nr this function is exactly the same as find_pid_ns.
  */
+// 수정 대상 함수
 struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
 {
+
+#ifndef CONFIG_PID_SKIPLIST
+	// 주어진 PID 번호 nr 이상의 첫 번째 PID를 찾는 함수
 	return idr_get_next(&ns->idr, &nr);
+#else
+	/* SkipList에서 nr 이상의 첫 번째 PID 찾기 */
+    const struct pid_sl_node *node = ns->pid_sl.header;
+    struct pid *result = NULL;
+
+    rcu_read_lock();
+
+    /* 레벨 0에서 순차 검색: nr 이상인 첫 노드 */
+    while ((node = READ_ONCE(node->forward[0])) != NULL) {
+        if (node->key >= nr) {
+            result = READ_ONCE(node->pid);
+            break;
+        }
+    }
+
+    rcu_read_unlock();
+
+    return result;
+#endif
 }
 
 /**
