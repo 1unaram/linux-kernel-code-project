@@ -293,7 +293,6 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 #ifndef CONFIG_PID_SKIPLIST
 		idr_replace(&upid->ns->idr, pid, upid->nr);
 #else
-		pid_skiplist_remove(&upid->ns->pid_sl, upid->nr); // *checkpoint*
 		pid_skiplist_insert(&upid->ns->pid_sl, upid->nr, pid, GFP_ATOMIC);
 #endif
 		upid->ns->pid_allocated++;
