@@ -170,6 +170,8 @@ void free_pid(struct pid *pid)
 }
 
 // 수정 대상 함수
+// kernel/pid.c - alloc_pid() 함수 수정본
+
 struct pid *alloc_pid(struct pid_namespace *ns)
 {
 	struct pid *pid;
@@ -179,98 +181,105 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	struct upid *upid;
 	int retval = -ENOMEM;
 
-	/*
-		1. struct pid 객체 할당 (idr 관련 없음)
-	*/
+#ifdef CONFIG_PID_SKIPLIST
+	printk(KERN_ALERT "PID_SKIPLIST: alloc_pid called for ns=%p (level=%d)\n",
+	       ns, ns->level);
+#endif
+
 	pid = kmem_cache_alloc(ns->pid_cachep, GFP_KERNEL);
-	if (!pid)
+	if (!pid) {
+#ifdef CONFIG_PID_SKIPLIST
+		printk(KERN_ALERT "PID_SKIPLIST: kmem_cache_alloc FAILED!\n");
+#endif
 		return ERR_PTR(retval);
+	}
+
+#ifdef CONFIG_PID_SKIPLIST
+	printk(KERN_ALERT "PID_SKIPLIST: pid struct allocated at %p\n", pid);
+#endif
 
 	tmp = ns;
-	pid->level = ns->level; // 현재 pid가 속한 최상위 네임스페이스의 레벨 설정
+	pid->level = ns->level;
 
-	/*
-		2. 각 네임스페이스 레벨별로 PID 할당
-		바깥쪽 네임스페이스부터 시작하여 안쪽 네임스페이스까지 PID 번호를 하나씩 예약
-	*/
 	for (i = ns->level; i >= 0; i--) {
 		int pid_min = 1;
 
 #ifndef CONFIG_PID_SKIPLIST
-		idr_preload(GFP_KERNEL); // IDR 내부에서 할당에 필요한 메모리를 미리 잡아두는 preloading (락 잡기 전).
-		spin_lock_irq(&pidmap_lock); // PID 번호 할당 전체를 보호하는 global spin lock 획득
+		idr_preload(GFP_KERNEL);
+		spin_lock_irq(&pidmap_lock);
 
-		/*
-		 * init really needs pid 1, but after reaching the maximum
-		 * wrap back to RESERVED_PIDS
-		 */
 		if (idr_get_cursor(&tmp->idr) > RESERVED_PIDS)
 			pid_min = RESERVED_PIDS;
 
-		/*
-		 * Store a null pointer so find_pid_ns does not find
-		 * a partially initialized PID (see below).
-		 */
 		nr = idr_alloc_cyclic(&tmp->idr, NULL, pid_min,
-				      pid_max, GFP_ATOMIC); // 포인터 값으로 NULL을 넣어서 “ID만” 예약. 이렇게 하면 find_pid_ns()가 아직 초기화되지 않은 PID를 보지 못하도록 함.
+				      pid_max, GFP_ATOMIC);
 		spin_unlock_irq(&pidmap_lock);
 		idr_preload_end();
 #else
-        /* SkipList 순환 할당 */ // *checkpoint*
+		/* SkipList 순환 할당 - 수정된 버전 */
 		spin_lock_irq(&pidmap_lock);
 
-        int start_pid = READ_ONCE(tmp->last_pid) + 1;
-        if (start_pid > RESERVED_PIDS)
-            pid_min = RESERVED_PIDS;
+		int start_pid = READ_ONCE(tmp->last_pid) + 1;
 
-        if (start_pid < pid_min || start_pid >= pid_max)
-            start_pid = pid_min;
+		// 최적화: 비어있는 skiplist라면 바로 pid_min 사용
+		if (tmp->pid_sl.header->forward[0] == NULL) {
+			// 완전히 비어있음
+			start_pid = (pid_min > RESERVED_PIDS) ? pid_min : RESERVED_PIDS;
+			if (start_pid < 1) start_pid = 1;
 
-        nr = -ENOSPC;
+			rcu_read_lock();
+			retval = pid_skiplist_insert(&tmp->pid_sl, start_pid, NULL, GFP_ATOMIC);
+			rcu_read_unlock();
 
-        /* start_pid부터 pid_max까지 검색 */
-        for (int scan = start_pid; scan < pid_max; scan++) {
-            if (!pid_skiplist_lookup_rcu(&tmp->pid_sl, scan)) {
-                retval = pid_skiplist_insert(&tmp->pid_sl, scan, NULL, GFP_ATOMIC);
-                if (retval == 0) {
-                    nr = scan;
-                    WRITE_ONCE(tmp->last_pid, scan);
-                    break;
-                }
-            }
-        }
+			if (retval == 0) {
+				nr = start_pid;
+				WRITE_ONCE(tmp->last_pid, start_pid);
+			} else {
+				nr = retval;
+			}
 
-        /* wrap around: pid_min부터 start_pid 전까지 검색 */
-        if (nr < 0) {
-            for (int scan = pid_min; scan < start_pid; scan++) {
-                if (!pid_skiplist_lookup_rcu(&tmp->pid_sl, scan)) {
-                    retval = pid_skiplist_insert(&tmp->pid_sl, scan, NULL, GFP_ATOMIC);
-                    if (retval == 0) {
-                        nr = scan;
-                        WRITE_ONCE(tmp->last_pid, scan);
-                        break;
-                    }
-                }
-            }
-        }
+			spin_unlock_irq(&pidmap_lock);
 
-        spin_unlock_irq(&pidmap_lock);
+			if (nr < 0) {
+				retval = (nr == -ENOSPC) ? -EAGAIN : nr;
+				goto out_free;
+			}
+
+			pid->numbers[i].nr = nr;
+			pid->numbers[i].ns = tmp;
+			tmp = tmp->parent;
+			continue;  // 다음 namespace 레벨로
+		}
+
+		/* wrap around: pid_min부터 start_pid 전까지 검색 */
+		if (nr < 0) {
+			for (int scan = pid_min; scan < start_pid; scan++) {
+				struct pid *existing = pid_skiplist_lookup_rcu(&tmp->pid_sl, scan);
+				if (!existing) {
+					retval = pid_skiplist_insert(&tmp->pid_sl, scan, NULL, GFP_ATOMIC);
+					if (retval == 0) {
+						nr = scan;
+						WRITE_ONCE(tmp->last_pid, scan);
+						break;
+					}
+				}
+			}
+		}
+
+		rcu_read_unlock();
+		spin_unlock_irq(&pidmap_lock);
 #endif
-		// 예약 실패 처리
+
 		if (nr < 0) {
 			retval = (nr == -ENOSPC) ? -EAGAIN : nr;
 			goto out_free;
 		}
 
-		// 예약 성공 처리
-		pid->numbers[i].nr = nr; // 이 레벨에서의 숫자 PID
-		pid->numbers[i].ns = tmp; // 이 레벨이 소속된 네임스페이스
+		pid->numbers[i].nr = nr;
+		pid->numbers[i].ns = tmp;
 		tmp = tmp->parent;
 	}
 
-	/*
-		3. child reaper와 pid 객체 초기화 (idr 관련 없음)
-	*/
 	if (unlikely(is_child_reaper(pid))) {
 		if (pid_ns_prepare_proc(ns))
 			goto out_free;
@@ -283,19 +292,15 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 
 	init_waitqueue_head(&pid->wait_pidfd);
 
-
-	/*
-		4. IDR에 실제 struct pid *를 채워 넣는 단계
-	*/
 	upid = pid->numbers + ns->level;
 	spin_lock_irq(&pidmap_lock);
 	if (!(ns->pid_allocated & PIDNS_ADDING))
 		goto out_unlock;
 	for ( ; upid >= pid->numbers; --upid) {
-		/* Make the PID visible to find_pid_ns. */
 #ifndef CONFIG_PID_SKIPLIST
 		idr_replace(&upid->ns->idr, pid, upid->nr);
 #else
+		/* NULL을 실제 pid로 교체 */
 		pid_skiplist_insert(&upid->ns->pid_sl, upid->nr, pid, GFP_ATOMIC);
 #endif
 		upid->ns->pid_allocated++;
@@ -304,14 +309,11 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 
 	return pid;
 
-/*
-	5. 실패 경로: 롤백 로직
-*/
-out_unlock: // PINDS_ADDING 상태가 아니어서 할당 실패한 경우
+out_unlock:
 	spin_unlock_irq(&pidmap_lock);
 	put_pid_ns(ns);
 
-out_free: // idr_alloc_cyclic()에서 실패한 경우 -> 예약된 PID 번호 롤백
+out_free:
 	spin_lock_irq(&pidmap_lock);
 	while (++i <= ns->level) {
 		upid = pid->numbers + i;
@@ -322,17 +324,15 @@ out_free: // idr_alloc_cyclic()에서 실패한 경우 -> 예약된 PID 번호 �
 #endif
 	}
 
-	/* On failure to allocate the first pid, reset the state */
 	if (ns->pid_allocated == PIDNS_ADDING)
 #ifndef CONFIG_PID_SKIPLIST
-		idr_set_cursor(&ns->idr, 0); // IDR 커서 리셋(PID 번호 재 시작)
+		idr_set_cursor(&ns->idr, 0);
 #else
 		WRITE_ONCE(ns->last_pid, 0);
 #endif
 
 	spin_unlock_irq(&pidmap_lock);
 
-	// struct pid 객체 해제
 	kmem_cache_free(ns->pid_cachep, pid);
 	return ERR_PTR(retval);
 }
@@ -350,6 +350,7 @@ struct pid *find_pid_ns(int nr, struct pid_namespace *ns)
 #ifndef CONFIG_PID_SKIPLIST
 	return idr_find(&ns->idr, nr);
 #else
+	// RCU 보호는 호출자 책임 (idr_find와 동일)
 	return pid_skiplist_lookup_rcu(&ns->pid_sl, nr);
 #endif
 }
@@ -543,13 +544,11 @@ EXPORT_SYMBOL_GPL(task_active_pid_ns);
 // 수정 대상 함수
 struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
 {
-
 #ifndef CONFIG_PID_SKIPLIST
-	// 주어진 PID 번호 nr 이상의 첫 번째 PID를 찾는 함수
 	return idr_get_next(&ns->idr, &nr);
 #else
-	/* SkipList에서 nr 이상의 첫 번째 PID 찾기 */
-    return pid_skiplist_find_ge_rcu(&ns->pid_sl, nr);
+	// RCU 보호는 호출자 책임
+	return pid_skiplist_find_ge_rcu(&ns->pid_sl, nr);
 #endif
 }
 
@@ -620,12 +619,11 @@ SYSCALL_DEFINE2(pidfd_open, pid_t, pid, unsigned int, flags)
 	return fd;
 }
 
+// debugging 코드 추가
 void __init pid_idr_init(void)
 {
-	/* Verify no one has done anything silly: */
 	BUILD_BUG_ON(PID_MAX_LIMIT >= PIDNS_ADDING);
 
-	/* bump default and minimum pid_max based on number of cpus */
 	pid_max = min(pid_max_max, max_t(int, pid_max,
 				PIDS_PER_CPU_DEFAULT * num_possible_cpus()));
 	pid_max_min = max_t(int, pid_max_min,
@@ -633,10 +631,29 @@ void __init pid_idr_init(void)
 	pr_info("pid_max: default: %u minimum: %u\n", pid_max, pid_max_min);
 
 #ifndef CONFIG_PID_SKIPLIST
-    idr_init(&init_pid_ns.idr);
+	idr_init(&init_pid_ns.idr);
 #else
-    pid_skiplist_init(&init_pid_ns.pid_sl, GFP_KERNEL);
+	printk(KERN_ALERT "PID_SKIPLIST: Initializing init_pid_ns skiplist...\n");
+
+	pid_skiplist_init(&init_pid_ns.pid_sl, GFP_KERNEL);
 	init_pid_ns.last_pid = 0;
+
+	printk(KERN_ALERT "PID_SKIPLIST: init_pid_ns.pid_sl.header = %p\n",
+	       init_pid_ns.pid_sl.header);
+	printk(KERN_ALERT "PID_SKIPLIST: init_pid_ns.pid_sl.level = %d\n",
+	       init_pid_ns.pid_sl.level);
+
+	// 간단한 테스트
+	int test_ret = pid_skiplist_insert(&init_pid_ns.pid_sl, 1, NULL, GFP_KERNEL);
+	printk(KERN_ALERT "PID_SKIPLIST: Test insert PID 1: ret=%d\n", test_ret);
+
+	struct pid *test_find = pid_skiplist_lookup_rcu(&init_pid_ns.pid_sl, 1);
+	printk(KERN_ALERT "PID_SKIPLIST: Test lookup PID 1: found=%p (should be NULL)\n", test_find);
+
+	pid_skiplist_remove(&init_pid_ns.pid_sl, 1);
+	printk(KERN_ALERT "PID_SKIPLIST: Test remove PID 1: done\n");
+
+	printk(KERN_ALERT "PID_SKIPLIST: Initialization complete!\n");
 #endif
 
 	init_pid_ns.pid_cachep = KMEM_CACHE(pid,
