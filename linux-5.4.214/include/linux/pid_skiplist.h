@@ -14,6 +14,7 @@ struct pid_sl_node {
 	struct pid *pid;             /* value: struct pid * */
 	struct pid_sl_node **forward;/* [0..level-1] next 포인터 */
 	u8 level;
+	struct rcu_head rcu;
 };
 
 struct pid_skiplist {

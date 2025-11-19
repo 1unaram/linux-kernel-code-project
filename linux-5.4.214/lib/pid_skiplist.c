@@ -126,6 +126,14 @@ struct pid *pid_skiplist_lookup_rcu(const struct pid_skiplist *sl, int key)
 	return NULL;
 }
 
+static void pid_sl_node_rcu_free(struct rcu_head *rcu)
+{
+    struct pid_sl_node *x = container_of(rcu, struct pid_sl_node, rcu);
+
+    kfree(x->forward);
+    kfree(x);
+}
+
 void pid_skiplist_remove(struct pid_skiplist *sl, int key)
 {
 	struct pid_sl_node *update[PID_SL_MAX_LEVEL];
@@ -152,8 +160,7 @@ void pid_skiplist_remove(struct pid_skiplist *sl, int key)
 		sl->level--;
 
 	/* RCU로 free하고 싶다면 call_rcu 사용해도 됨 */
-	kfree(x->forward);
-	kfree(x);
+	call_rcu(&x->rcu, pid_sl_node_rcu_free);
 }
 
 /* RCU 안전한 순회: 시작 key 이후의 모든 항목 순회 */
