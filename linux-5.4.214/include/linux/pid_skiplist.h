@@ -1,59 +1,41 @@
-// include/linux/pid_skiplist.h
-#ifndef _LINUX_PID_SKIPLIST_H
+// include/linux/pid_skiplist.h#ifndef _LINUX_PID_SKIPLIST_H
 #define _LINUX_PID_SKIPLIST_H
 
 #include <linux/types.h>
 #include <linux/rcupdate.h>
 
+#define PID_SL_MAX_LEVEL 16
+#define PID_SL_P 2  // 1/4 확률
+
 struct pid;
 
-#define PID_SL_MAX_LEVEL 16
-#define PID_SL_P         4
-
 struct pid_sl_node {
-	int key;                     /* PID 번호 */
-	struct pid *pid;             /* value: struct pid * */
-	struct pid_sl_node **forward;/* [0..level-1] next 포인터 */
-	u8 level;
-	struct rcu_head rcu;
+    int key;
+    struct pid *pid;
+    int level;
+    struct pid_sl_node **forward;
+    struct rcu_head rcu;
 };
 
 struct pid_skiplist {
-	int level;
-	struct pid_sl_node *header;
-} ____cacheline_aligned;
+    int level;
+    struct pid_sl_node *header;
+} ____cacheline_aligned;  // 캐시 라인 정렬 최적화
 
-#ifdef CONFIG_PID_SKIPLIST
-
+/* 기본 함수 */
 void pid_skiplist_init(struct pid_skiplist *sl, gfp_t gfp);
 void pid_skiplist_destroy(struct pid_skiplist *sl);
-
-int pid_skiplist_insert(struct pid_skiplist *sl, int key,
-			struct pid *pid, gfp_t gfp);
-struct pid *pid_skiplist_lookup_rcu(const struct pid_skiplist *sl, int key);
+int pid_skiplist_insert(struct pid_skiplist *sl, int key, struct pid *pid, gfp_t gfp);
 void pid_skiplist_remove(struct pid_skiplist *sl, int key);
 
-#else  /* !CONFIG_PID_SKIPLIST */
+/* RCU 안전한 조회 함수 */
+struct pid *pid_skiplist_lookup_rcu(const struct pid_skiplist *sl, int key);
 
-/* CONFIG 끈 경우: 빈 스텁 제공 (혹시 include만 하는 코드 대비) */
+/* 순회/검색 함수 - 새로 추가된 함수들 */
+struct pid *pid_skiplist_iter_next_rcu(const struct pid_skiplist *sl,
+                                        struct pid_sl_node **cursor,
+                                        int start_key);
 
-static inline void pid_skiplist_init(struct pid_skiplist *sl, gfp_t gfp) {}
-static inline void pid_skiplist_destroy(struct pid_skiplist *sl) {}
-
-static inline int pid_skiplist_insert(struct pid_skiplist *sl, int key,
-				      struct pid *pid, gfp_t gfp)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline struct pid *
-pid_skiplist_lookup_rcu(const struct pid_skiplist *sl, int key)
-{
-	return NULL;
-}
-
-static inline void pid_skiplist_remove(struct pid_skiplist *sl, int key) {}
-
-#endif /* CONFIG_PID_SKIPLIST */
+struct pid *pid_skiplist_find_ge_rcu(const struct pid_skiplist *sl, int key);
 
 #endif /* _LINUX_PID_SKIPLIST_H */
