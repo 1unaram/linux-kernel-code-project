@@ -79,7 +79,7 @@ int pid_skiplist_insert(struct pid_skiplist *sl, int key,
 	x = x->forward[0];
 	if (x && x->key == key) {
 		/* 이미 있다면 struct pid*만 교체 */
-		x->pid = pid;
+		WRITE_ONCE(x->pid, pid);
 		return 0;
 	}
 
@@ -95,7 +95,7 @@ int pid_skiplist_insert(struct pid_skiplist *sl, int key,
 		return -ENOMEM;
 
 	x->key = key;
-	x->pid = pid;
+	WRITE_ONCE(x->pid, pid);
 
 	for (i = 0; i < lvl; i++) {
 		x->forward[i] = update[i]->forward[i];
