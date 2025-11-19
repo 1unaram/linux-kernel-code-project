@@ -2244,6 +2244,6 @@ config ARCH_HAS_SYNC_CORE_BEFORE_USERMODE
 config ARCH_HAS_SYSCALL_WRAPPER
 	def_bool n
 
-#config PID_SKIPLIST
-#    bool "Use skiplist for PID namespace"
-#   depends on EXPERIMENTAL
+config PID_SKIPLIST
+    bool "Use skiplist for PID namespace"
+	default n

@@ -24,6 +24,10 @@
 #include <linux/sched/signal.h>
 #include <linux/idr.h>
 
+#ifdef CONFIG_PID_SKIPLIST
+#include <linux/pid_skiplist.h>
+#endif
+
 static DEFINE_MUTEX(pid_caches_mutex);
 static struct kmem_cache *pid_ns_cachep;
 /* MAX_PID_NS_LEVEL is needed for limiting size of 'struct pid' */
