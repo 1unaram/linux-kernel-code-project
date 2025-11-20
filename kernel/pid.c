@@ -1,0 +1,662 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Generic pidhash and scalable, time-bounded PID allocator
+ *
+ * (C) 2002-2003 Nadia Yvette Chambers, IBM
+ * (C) 2004 Nadia Yvette Chambers, Oracle
+ * (C) 2002-2004 Ingo Molnar, Red Hat
+ *
+ * pid-structures are backing objects for tasks sharing a given ID to chain
+ * against. There is very little to them aside from hashing them and
+ * parking tasks using given ID's on a list.
+ *
+ * The hash is always changed with the tasklist_lock write-acquired,
+ * and the hash is only accessed with the tasklist_lock at least
+ * read-acquired, so there's no additional SMP locking needed here.
+ *
+ * We have a list of bitmap pages, which bitmaps represent the PID space.
+ * Allocating and freeing PIDs is completely lockless. The worst-case
+ * allocation scenario when all but one out of 1 million PIDs possible are
+ * allocated already: the scanning of 32 list entries and at most PAGE_SIZE
+ * bytes. The typical fastpath is a single successful setbit. Freeing is O(1).
+ *
+ * Pid namespaces:
+ *    (C) 2007 Pavel Emelyanov <xemul@openvz.org>, OpenVZ, SWsoft Inc.
+ *    (C) 2007 Sukadev Bhattiprolu <sukadev@us.ibm.com>, IBM
+ *     Many thanks to Oleg Nesterov for comments and help
+ *
+ */
+
+#include <linux/mm.h>
+#include <linux/export.h>
+#include <linux/slab.h>
+#include <linux/init.h>
+#include <linux/rculist.h>
+#include <linux/memblock.h>
+#include <linux/pid_namespace.h>
+#include <linux/init_task.h>
+#include <linux/syscalls.h>
+#include <linux/proc_ns.h>
+#include <linux/refcount.h>
+#include <linux/anon_inodes.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/task.h>
+#include <linux/idr.h>
+
+#ifdef CONFIG_PID_SKIPLIST
+#include <linux/pid_skiplist.h>
+#endif
+
+struct pid init_struct_pid = {
+	.count		= REFCOUNT_INIT(1),
+	.tasks		= {
+		{ .first = NULL },
+		{ .first = NULL },
+		{ .first = NULL },
+	},
+	.level		= 0,
+	.numbers	= { {
+		.nr		= 0,
+		.ns		= &init_pid_ns,
+	}, }
+};
+
+int pid_max = PID_MAX_DEFAULT;
+
+#define RESERVED_PIDS		300
+
+int pid_max_min = RESERVED_PIDS + 1;
+int pid_max_max = PID_MAX_LIMIT;
+
+/*
+ * PID-map pages start out as NULL, they get allocated upon
+ * first use and are never deallocated. This way a low pid_max
+ * value does not cause lots of bitmaps to be allocated, but
+ * the scheme scales to up to 4 million PIDs, runtime.
+ */
+struct pid_namespace init_pid_ns = {
+	.kref = KREF_INIT(2),
+#ifndef CONFIG_PID_SKIPLIST
+	.idr = IDR_INIT(init_pid_ns.idr),
+#endif
+	.pid_allocated = PIDNS_ADDING,
+	.level = 0,
+	.child_reaper = &init_task,
+	.user_ns = &init_user_ns,
+	.ns.inum = PROC_PID_INIT_INO,
+#ifdef CONFIG_PID_NS
+	.ns.ops = &pidns_operations,
+#endif
+};
+EXPORT_SYMBOL_GPL(init_pid_ns);
+
+/*
+ * Note: disable interrupts while the pidmap_lock is held as an
+ * interrupt might come in and do read_lock(&tasklist_lock).
+ *
+ * If we don't disable interrupts there is a nasty deadlock between
+ * detach_pid()->free_pid() and another cpu that does
+ * spin_lock(&pidmap_lock) followed by an interrupt routine that does
+ * read_lock(&tasklist_lock);
+ *
+ * After we clean up the tasklist_lock and know there are no
+ * irq handlers that take it we can leave the interrupts enabled.
+ * For now it is easier to be safe than to prove it can't happen.
+ */
+
+static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(pidmap_lock);
+
+void put_pid(struct pid *pid)
+{
+	struct pid_namespace *ns;
+
+	if (!pid)
+		return;
+
+	ns = pid->numbers[pid->level].ns;
+	if (refcount_dec_and_test(&pid->count)) {
+		kmem_cache_free(ns->pid_cachep, pid);
+		put_pid_ns(ns);
+	}
+}
+EXPORT_SYMBOL_GPL(put_pid);
+
+static void delayed_put_pid(struct rcu_head *rhp)
+{
+	struct pid *pid = container_of(rhp, struct pid, rcu);
+	put_pid(pid);
+}
+
+
+// 수정 대상 함수
+void free_pid(struct pid *pid)
+{
+	/* We can be called with write_lock_irq(&tasklist_lock) held */
+	int i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pidmap_lock, flags);
+	for (i = 0; i <= pid->level; i++) {
+		struct upid *upid = pid->numbers + i;
+		struct pid_namespace *ns = upid->ns;
+		switch (--ns->pid_allocated) {
+		case 2:
+		case 1:
+			/* When all that is left in the pid namespace
+			 * is the reaper wake up the reaper.  The reaper
+			 * may be sleeping in zap_pid_ns_processes().
+			 */
+			wake_up_process(ns->child_reaper);
+			break;
+		case PIDNS_ADDING:
+			/* Handle a fork failure of the first process */
+			WARN_ON(ns->child_reaper);
+			ns->pid_allocated = 0;
+			/* fall through */
+		case 0:
+			schedule_work(&ns->proc_work);
+			break;
+		}
+
+#ifndef CONFIG_PID_SKIPLIST
+		idr_remove(&ns->idr, upid->nr);
+#else
+		pid_skiplist_remove(&ns->pid_sl, upid->nr);
+#endif
+	}
+	spin_unlock_irqrestore(&pidmap_lock, flags);
+
+	call_rcu(&pid->rcu, delayed_put_pid);
+}
+
+// 수정 대상 함수
+// kernel/pid.c - alloc_pid() 함수 수정본
+
+struct pid *alloc_pid(struct pid_namespace *ns)
+{
+	struct pid *pid;
+	enum pid_type type;
+	int i, nr;
+	struct pid_namespace *tmp;
+	struct upid *upid;
+	int retval = -ENOMEM;
+
+// #ifdef CONFIG_PID_SKIPLIST
+// 	printk(KERN_ALERT "PID_SKIPLIST: alloc_pid called for ns=%p (level=%d)\n",
+// 	       ns, ns->level);
+// #endif
+
+	pid = kmem_cache_alloc(ns->pid_cachep, GFP_KERNEL);
+	if (!pid) {
+// #ifdef CONFIG_PID_SKIPLIST
+// 		printk(KERN_ALERT "PID_SKIPLIST: kmem_cache_alloc FAILED!\n");
+// #endif
+		return ERR_PTR(retval);
+	}
+
+// #ifdef CONFIG_PID_SKIPLIST
+// 	printk(KERN_ALERT "PID_SKIPLIST: pid struct allocated at %p\n", pid);
+// #endif
+
+	tmp = ns;
+	pid->level = ns->level;
+
+	for (i = ns->level; i >= 0; i--) {
+		int pid_min = 1;
+
+#ifndef CONFIG_PID_SKIPLIST
+		idr_preload(GFP_KERNEL);
+		spin_lock_irq(&pidmap_lock);
+
+		if (idr_get_cursor(&tmp->idr) > RESERVED_PIDS)
+			pid_min = RESERVED_PIDS;
+
+		nr = idr_alloc_cyclic(&tmp->idr, NULL, pid_min,
+				      pid_max, GFP_ATOMIC);
+		spin_unlock_irq(&pidmap_lock);
+		idr_preload_end();
+#else
+		/* SkipList 순환 할당 - 수정된 버전 */
+		spin_lock_irq(&pidmap_lock);
+
+		int start_pid = READ_ONCE(tmp->last_pid) + 1;
+
+		// 최적화: 비어있는 skiplist라면 바로 pid_min 사용
+		if (tmp->pid_sl.header->forward[0] == NULL) {
+			// 완전히 비어있음
+			start_pid = (pid_min > RESERVED_PIDS) ? pid_min : RESERVED_PIDS;
+			if (start_pid < 1) start_pid = 1;
+
+			rcu_read_lock();
+			retval = pid_skiplist_insert(&tmp->pid_sl, start_pid, NULL, GFP_ATOMIC);
+			rcu_read_unlock();
+
+			if (retval == 0) {
+				nr = start_pid;
+				WRITE_ONCE(tmp->last_pid, start_pid);
+			} else {
+				nr = retval;
+			}
+
+			spin_unlock_irq(&pidmap_lock);
+
+			if (nr < 0) {
+				retval = (nr == -ENOSPC) ? -EAGAIN : nr;
+				goto out_free;
+			}
+
+			pid->numbers[i].nr = nr;
+			pid->numbers[i].ns = tmp;
+			tmp = tmp->parent;
+			continue;  // 다음 namespace 레벨로
+		}
+
+		/* wrap around: pid_min부터 start_pid 전까지 검색 */
+		if (nr < 0) {
+			int scan;
+			for (scan = pid_min; scan < start_pid; scan++) {
+				struct pid *existing = pid_skiplist_lookup_rcu(&tmp->pid_sl, scan);
+				if (!existing) {
+					retval = pid_skiplist_insert(&tmp->pid_sl, scan, NULL, GFP_ATOMIC);
+					if (retval == 0) {
+						nr = scan;
+						WRITE_ONCE(tmp->last_pid, scan);
+						break;
+					}
+				}
+			}
+		}
+
+		rcu_read_unlock();
+		spin_unlock_irq(&pidmap_lock);
+#endif
+
+		if (nr < 0) {
+			retval = (nr == -ENOSPC) ? -EAGAIN : nr;
+			goto out_free;
+		}
+
+		pid->numbers[i].nr = nr;
+		pid->numbers[i].ns = tmp;
+		tmp = tmp->parent;
+	}
+
+	if (unlikely(is_child_reaper(pid))) {
+		if (pid_ns_prepare_proc(ns))
+			goto out_free;
+	}
+
+	get_pid_ns(ns);
+	refcount_set(&pid->count, 1);
+	for (type = 0; type < PIDTYPE_MAX; ++type)
+		INIT_HLIST_HEAD(&pid->tasks[type]);
+
+	init_waitqueue_head(&pid->wait_pidfd);
+
+	upid = pid->numbers + ns->level;
+	spin_lock_irq(&pidmap_lock);
+	if (!(ns->pid_allocated & PIDNS_ADDING))
+		goto out_unlock;
+	for ( ; upid >= pid->numbers; --upid) {
+#ifndef CONFIG_PID_SKIPLIST
+		idr_replace(&upid->ns->idr, pid, upid->nr);
+#else
+		/* NULL을 실제 pid로 교체 */
+		pid_skiplist_insert(&upid->ns->pid_sl, upid->nr, pid, GFP_ATOMIC);
+#endif
+		upid->ns->pid_allocated++;
+	}
+	spin_unlock_irq(&pidmap_lock);
+
+	return pid;
+
+out_unlock:
+	spin_unlock_irq(&pidmap_lock);
+	put_pid_ns(ns);
+
+out_free:
+	spin_lock_irq(&pidmap_lock);
+	while (++i <= ns->level) {
+		upid = pid->numbers + i;
+#ifndef CONFIG_PID_SKIPLIST
+		idr_remove(&upid->ns->idr, upid->nr);
+#else
+		pid_skiplist_remove(&upid->ns->pid_sl, upid->nr);
+#endif
+	}
+
+	if (ns->pid_allocated == PIDNS_ADDING)
+#ifndef CONFIG_PID_SKIPLIST
+		idr_set_cursor(&ns->idr, 0);
+#else
+		WRITE_ONCE(ns->last_pid, 0);
+#endif
+
+	spin_unlock_irq(&pidmap_lock);
+
+	kmem_cache_free(ns->pid_cachep, pid);
+	return ERR_PTR(retval);
+}
+
+void disable_pid_allocation(struct pid_namespace *ns)
+{
+	spin_lock_irq(&pidmap_lock);
+	ns->pid_allocated &= ~PIDNS_ADDING;
+	spin_unlock_irq(&pidmap_lock);
+}
+
+// 수정 대상 함수
+struct pid *find_pid_ns(int nr, struct pid_namespace *ns)
+{
+#ifndef CONFIG_PID_SKIPLIST
+	return idr_find(&ns->idr, nr);
+#else
+	// RCU 보호는 호출자 책임 (idr_find와 동일)
+	return pid_skiplist_lookup_rcu(&ns->pid_sl, nr);
+#endif
+}
+EXPORT_SYMBOL_GPL(find_pid_ns);
+
+struct pid *find_vpid(int nr)
+{
+	return find_pid_ns(nr, task_active_pid_ns(current));
+}
+EXPORT_SYMBOL_GPL(find_vpid);
+
+static struct pid **task_pid_ptr(struct task_struct *task, enum pid_type type)
+{
+	return (type == PIDTYPE_PID) ?
+		&task->thread_pid :
+		&task->signal->pids[type];
+}
+
+/*
+ * attach_pid() must be called with the tasklist_lock write-held.
+ */
+void attach_pid(struct task_struct *task, enum pid_type type)
+{
+	struct pid *pid = *task_pid_ptr(task, type);
+	hlist_add_head_rcu(&task->pid_links[type], &pid->tasks[type]);
+}
+
+static void __change_pid(struct task_struct *task, enum pid_type type,
+			struct pid *new)
+{
+	struct pid **pid_ptr = task_pid_ptr(task, type);
+	struct pid *pid;
+	int tmp;
+
+	pid = *pid_ptr;
+
+	hlist_del_rcu(&task->pid_links[type]);
+	*pid_ptr = new;
+
+	for (tmp = PIDTYPE_MAX; --tmp >= 0; )
+		if (!hlist_empty(&pid->tasks[tmp]))
+			return;
+
+	free_pid(pid);
+}
+
+void detach_pid(struct task_struct *task, enum pid_type type)
+{
+	__change_pid(task, type, NULL);
+}
+
+void change_pid(struct task_struct *task, enum pid_type type,
+		struct pid *pid)
+{
+	__change_pid(task, type, pid);
+	attach_pid(task, type);
+}
+
+/* transfer_pid is an optimization of attach_pid(new), detach_pid(old) */
+void transfer_pid(struct task_struct *old, struct task_struct *new,
+			   enum pid_type type)
+{
+	if (type == PIDTYPE_PID)
+		new->thread_pid = old->thread_pid;
+	hlist_replace_rcu(&old->pid_links[type], &new->pid_links[type]);
+}
+
+struct task_struct *pid_task(struct pid *pid, enum pid_type type)
+{
+	struct task_struct *result = NULL;
+	if (pid) {
+		struct hlist_node *first;
+		first = rcu_dereference_check(hlist_first_rcu(&pid->tasks[type]),
+					      lockdep_tasklist_lock_is_held());
+		if (first)
+			result = hlist_entry(first, struct task_struct, pid_links[(type)]);
+	}
+	return result;
+}
+EXPORT_SYMBOL(pid_task);
+
+/*
+ * Must be called under rcu_read_lock().
+ */
+struct task_struct *find_task_by_pid_ns(pid_t nr, struct pid_namespace *ns)
+{
+	RCU_LOCKDEP_WARN(!rcu_read_lock_held(),
+			 "find_task_by_pid_ns() needs rcu_read_lock() protection");
+	return pid_task(find_pid_ns(nr, ns), PIDTYPE_PID);
+}
+
+struct task_struct *find_task_by_vpid(pid_t vnr)
+{
+	return find_task_by_pid_ns(vnr, task_active_pid_ns(current));
+}
+
+struct task_struct *find_get_task_by_vpid(pid_t nr)
+{
+	struct task_struct *task;
+
+	rcu_read_lock();
+	task = find_task_by_vpid(nr);
+	if (task)
+		get_task_struct(task);
+	rcu_read_unlock();
+
+	return task;
+}
+
+struct pid *get_task_pid(struct task_struct *task, enum pid_type type)
+{
+	struct pid *pid;
+	rcu_read_lock();
+	pid = get_pid(rcu_dereference(*task_pid_ptr(task, type)));
+	rcu_read_unlock();
+	return pid;
+}
+EXPORT_SYMBOL_GPL(get_task_pid);
+
+struct task_struct *get_pid_task(struct pid *pid, enum pid_type type)
+{
+	struct task_struct *result;
+	rcu_read_lock();
+	result = pid_task(pid, type);
+	if (result)
+		get_task_struct(result);
+	rcu_read_unlock();
+	return result;
+}
+EXPORT_SYMBOL_GPL(get_pid_task);
+
+struct pid *find_get_pid(pid_t nr)
+{
+	struct pid *pid;
+
+	rcu_read_lock();
+	pid = get_pid(find_vpid(nr));
+	rcu_read_unlock();
+
+	return pid;
+}
+EXPORT_SYMBOL_GPL(find_get_pid);
+
+pid_t pid_nr_ns(struct pid *pid, struct pid_namespace *ns)
+{
+	struct upid *upid;
+	pid_t nr = 0;
+
+	if (pid && ns->level <= pid->level) {
+		upid = &pid->numbers[ns->level];
+		if (upid->ns == ns)
+			nr = upid->nr;
+	}
+	return nr;
+}
+EXPORT_SYMBOL_GPL(pid_nr_ns);
+
+pid_t pid_vnr(struct pid *pid)
+{
+	return pid_nr_ns(pid, task_active_pid_ns(current));
+}
+EXPORT_SYMBOL_GPL(pid_vnr);
+
+pid_t __task_pid_nr_ns(struct task_struct *task, enum pid_type type,
+			struct pid_namespace *ns)
+{
+	pid_t nr = 0;
+
+	rcu_read_lock();
+	if (!ns)
+		ns = task_active_pid_ns(current);
+	if (likely(pid_alive(task)))
+		nr = pid_nr_ns(rcu_dereference(*task_pid_ptr(task, type)), ns);
+	rcu_read_unlock();
+
+	return nr;
+}
+EXPORT_SYMBOL(__task_pid_nr_ns);
+
+struct pid_namespace *task_active_pid_ns(struct task_struct *tsk)
+{
+	return ns_of_pid(task_pid(tsk));
+}
+EXPORT_SYMBOL_GPL(task_active_pid_ns);
+
+/*
+ * Used by proc to find the first pid that is greater than or equal to nr.
+ *
+ * If there is a pid at nr this function is exactly the same as find_pid_ns.
+ */
+// 수정 대상 함수
+struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
+{
+#ifndef CONFIG_PID_SKIPLIST
+	return idr_get_next(&ns->idr, &nr);
+#else
+	// RCU 보호는 호출자 책임
+	return pid_skiplist_find_ge_rcu(&ns->pid_sl, nr);
+#endif
+}
+
+/**
+ * pidfd_create() - Create a new pid file descriptor.
+ *
+ * @pid:  struct pid that the pidfd will reference
+ *
+ * This creates a new pid file descriptor with the O_CLOEXEC flag set.
+ *
+ * Note, that this function can only be called after the fd table has
+ * been unshared to avoid leaking the pidfd to the new process.
+ *
+ * Return: On success, a cloexec pidfd is returned.
+ *         On error, a negative errno number will be returned.
+ */
+static int pidfd_create(struct pid *pid)
+{
+	int fd;
+
+	fd = anon_inode_getfd("[pidfd]", &pidfd_fops, get_pid(pid),
+			      O_RDWR | O_CLOEXEC);
+	if (fd < 0)
+		put_pid(pid);
+
+	return fd;
+}
+
+/**
+ * pidfd_open() - Open new pid file descriptor.
+ *
+ * @pid:   pid for which to retrieve a pidfd
+ * @flags: flags to pass
+ *
+ * This creates a new pid file descriptor with the O_CLOEXEC flag set for
+ * the process identified by @pid. Currently, the process identified by
+ * @pid must be a thread-group leader. This restriction currently exists
+ * for all aspects of pidfds including pidfd creation (CLONE_PIDFD cannot
+ * be used with CLONE_THREAD) and pidfd polling (only supports thread group
+ * leaders).
+ *
+ * Return: On success, a cloexec pidfd is returned.
+ *         On error, a negative errno number will be returned.
+ */
+SYSCALL_DEFINE2(pidfd_open, pid_t, pid, unsigned int, flags)
+{
+	int fd, ret;
+	struct pid *p;
+
+	if (flags)
+		return -EINVAL;
+
+	if (pid <= 0)
+		return -EINVAL;
+
+	p = find_get_pid(pid);
+	if (!p)
+		return -ESRCH;
+
+	ret = 0;
+	rcu_read_lock();
+	if (!pid_task(p, PIDTYPE_TGID))
+		ret = -EINVAL;
+	rcu_read_unlock();
+
+	fd = ret ?: pidfd_create(p);
+	put_pid(p);
+	return fd;
+}
+
+// debugging 코드 추가
+void __init pid_idr_init(void)
+{
+	BUILD_BUG_ON(PID_MAX_LIMIT >= PIDNS_ADDING);
+
+	pid_max = min(pid_max_max, max_t(int, pid_max,
+				PIDS_PER_CPU_DEFAULT * num_possible_cpus()));
+	pid_max_min = max_t(int, pid_max_min,
+				PIDS_PER_CPU_MIN * num_possible_cpus());
+	// pr_info("pid_max: default: %u minimum: %u\n", pid_max, pid_max_min);
+
+#ifndef CONFIG_PID_SKIPLIST
+	idr_init(&init_pid_ns.idr);
+#else
+	// printk(KERN_ALERT "PID_SKIPLIST: Initializing init_pid_ns skiplist...\n");
+
+	pid_skiplist_init(&init_pid_ns.pid_sl, GFP_KERNEL);
+	init_pid_ns.last_pid = 0;
+
+	// printk(KERN_ALERT "PID_SKIPLIST: init_pid_ns.pid_sl.header = %p\n",
+	//        init_pid_ns.pid_sl.header);
+	// printk(KERN_ALERT "PID_SKIPLIST: init_pid_ns.pid_sl.level = %d\n",
+	//        init_pid_ns.pid_sl.level);
+
+	// 간단한 테스트
+	// int test_ret = pid_skiplist_insert(&init_pid_ns.pid_sl, 1, NULL, GFP_KERNEL);
+	// printk(KERN_ALERT "PID_SKIPLIST: Test insert PID 1: ret=%d\n", test_ret);
+
+	// struct pid *test_find = pid_skiplist_lookup_rcu(&init_pid_ns.pid_sl, 1);
+	// printk(KERN_ALERT "PID_SKIPLIST: Test lookup PID 1: found=%p (should be NULL)\n", test_find);
+
+	// pid_skiplist_remove(&init_pid_ns.pid_sl, 1);
+	// printk(KERN_ALERT "PID_SKIPLIST: Test remove PID 1: done\n");
+
+	// printk(KERN_ALERT "PID_SKIPLIST: Initialization complete!\n");
+#endif
+
+	init_pid_ns.pid_cachep = KMEM_CACHE(pid,
+			SLAB_HWCACHE_ALIGN | SLAB_PANIC | SLAB_ACCOUNT);
+}
