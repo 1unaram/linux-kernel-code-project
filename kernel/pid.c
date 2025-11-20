@@ -181,10 +181,10 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	struct upid *upid;
 	int retval = -ENOMEM;
 
-// #ifdef CONFIG_PID_SKIPLIST
-// 	printk(KERN_ALERT "PID_SKIPLIST: alloc_pid called for ns=%p (level=%d)\n",
-// 	       ns, ns->level);
-// #endif
+#ifdef CONFIG_PID_SKIPLIST
+	printk(KERN_ALERT "PID_SKIPLIST: alloc_pid called for ns=%p (level=%d)\n",
+	       ns, ns->level);
+#endif
 
 	pid = kmem_cache_alloc(ns->pid_cachep, GFP_KERNEL);
 	if (!pid) {
@@ -308,13 +308,22 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	}
 	spin_unlock_irq(&pidmap_lock);
 
+#ifdef CONFIG_PID_SKIPLIST
+	printk(KERN_ALERT "DEBUG: alloc_pid END (nr=%d)\n", nr);
+#endif
 	return pid;
 
 out_unlock:
+#ifdef CONFIG_PID_SKIPLIST
+	printk(KERN_ALERT "DEBUG: Jump to out_unlock");
+#endif
 	spin_unlock_irq(&pidmap_lock);
 	put_pid_ns(ns);
 
 out_free:
+#ifdef CONFIG_PID_SKIPLIST
+	printk(KERN_ALERT "DEBUG: Jump to out_free");
+#endif
 	spin_lock_irq(&pidmap_lock);
 	while (++i <= ns->level) {
 		upid = pid->numbers + i;
