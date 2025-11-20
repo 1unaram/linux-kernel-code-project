@@ -193,7 +193,7 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 
 #ifdef CONFIG_PID_SKIPLIST
     if (!ns->pid_sl.header) {
-        printk(KERN_ERR "BUG: pid_skiplist not initialized for ns=%p!\n", ns);
+        // printk(KERN_ERR "BUG: pid_skiplist not initialized for ns=%p!\n", ns);
         return ERR_PTR(-EINVAL);
     }
 #endif
@@ -239,7 +239,8 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 		
 		// ★ 빈 PID 찾기 (start_pid부터 pid_max까지)
 		nr = -1;
-		for (int scan = start_pid; scan < pid_max; scan++) {
+		int scan;
+		for (scan = start_pid; scan < pid_max; scan++) {
 			struct pid *existing;
 			
 			rcu_read_lock();
@@ -258,20 +259,20 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 		}
 		
 		/* wrap around: pid_min부터 start_pid 전까지 검색 */
-		int scan;
 		if (nr < 0) {
-			for (scan = pid_min; scan < start_pid; scan++) {
+			int scan2;
+			for (scan2 = pid_min; scan2 < start_pid; scan2++) {
 				struct pid *existing;
 				
 				rcu_read_lock();
-				existing = pid_skiplist_lookup_rcu(&tmp->pid_sl, scan);
+				existing = pid_skiplist_lookup_rcu(&tmp->pid_sl, scan2);
 				rcu_read_unlock();
 				
 				if (!existing) {
-					retval = pid_skiplist_insert(&tmp->pid_sl, scan, NULL, GFP_ATOMIC);
+					retval = pid_skiplist_insert(&tmp->pid_sl, scan2, NULL, GFP_ATOMIC);
 					if (retval == 0) {
-						nr = scan;
-						WRITE_ONCE(tmp->last_pid, scan);
+						nr = scan2;
+						WRITE_ONCE(tmp->last_pid, scan2);
 						break;
 					}
 				}
@@ -318,22 +319,22 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	}
 	spin_unlock_irq(&pidmap_lock);
 
-#ifdef CONFIG_PID_SKIPLIST
-	printk(KERN_ALERT "DEBUG: alloc_pid END (nr=%d)\n", nr);
-#endif
+// #ifdef CONFIG_PID_SKIPLIST
+// 	printk(KERN_ALERT "DEBUG: alloc_pid END (nr=%d)\n", nr);
+// #endif
 	return pid;
 
 out_unlock:
-#ifdef CONFIG_PID_SKIPLIST
-	printk(KERN_ALERT "DEBUG: Jump to out_unlock");
-#endif
+// #ifdef CONFIG_PID_SKIPLIST
+// 	printk(KERN_ALERT "DEBUG: Jump to out_unlock");
+// #endif
 	spin_unlock_irq(&pidmap_lock);
 	put_pid_ns(ns);
 
 out_free:
-#ifdef CONFIG_PID_SKIPLIST
-	printk(KERN_ALERT "DEBUG: Jump to out_free");
-#endif
+// #ifdef CONFIG_PID_SKIPLIST
+// 	printk(KERN_ALERT "DEBUG: Jump to out_free");
+// #endif
 	spin_lock_irq(&pidmap_lock);
 	while (++i <= ns->level) {
 		upid = pid->numbers + i;
@@ -368,7 +369,7 @@ void disable_pid_allocation(struct pid_namespace *ns)
 // 수정 대상 함수
 struct pid *find_pid_ns(int nr, struct pid_namespace *ns)
 {
-	printk(KERN_INFO "find_pid_ns: nr=%d, ns=%p\n", nr, ns);
+	// printk(KERN_INFO "find_pid_ns: nr=%d, ns=%p\n", nr, ns);
 #ifndef CONFIG_PID_SKIPLIST
 	return idr_find(&ns->idr, nr);
 #else
@@ -668,7 +669,7 @@ void __init pid_idr_init(void)
 #ifndef CONFIG_PID_SKIPLIST
 	idr_init(&init_pid_ns.idr);
 #else
-	printk(KERN_ALERT "PID_SKIPLIST: Initializing init_pid_ns skiplist...\n");
+	// printk(KERN_ALERT "PID_SKIPLIST: Initializing init_pid_ns skiplist...\n");
 
 	pid_skiplist_init(&init_pid_ns.pid_sl, GFP_KERNEL);
 	init_pid_ns.last_pid = 0;

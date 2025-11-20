@@ -84,9 +84,9 @@ int pid_skiplist_insert(struct pid_skiplist *sl, int key,
 	struct pid_sl_node *x = sl->header;
 	int i, lvl;
 
-#ifdef CONFIG_PID_SKIPLIST
-    printk(KERN_ALERT "DEBUG: skiplist_insert START (key=%d)\n", key);
-#endif
+// #ifdef CONFIG_PID_SKIPLIST
+//     printk(KERN_ALERT "DEBUG: skiplist_insert START (key=%d)\n", key);
+// #endif
 
 
 	for (i = sl->level - 1; i >= 0; i--) {
@@ -122,9 +122,9 @@ int pid_skiplist_insert(struct pid_skiplist *sl, int key,
 		WRITE_ONCE(update[i]->forward[i], x);
 	}
 
-#ifdef CONFIG_PID_SKIPLIST
-    printk(KERN_ALERT "DEBUG: skiplist_insert END\n");
-#endif
+// #ifdef CONFIG_PID_SKIPLIST
+//     printk(KERN_ALERT "DEBUG: skiplist_insert END\n");
+// #endif
 
 
 	return 0;
