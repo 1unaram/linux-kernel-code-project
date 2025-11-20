@@ -78,6 +78,12 @@ struct pid_namespace init_pid_ns = {
 	.kref = KREF_INIT(2),
 #ifndef CONFIG_PID_SKIPLIST
 	.idr = IDR_INIT(init_pid_ns.idr),
+#else
+    .pid_sl = {                   
+        .level = 0,
+        .header = NULL,
+    },
+    .last_pid = 0,                 
 #endif
 	.pid_allocated = PIDNS_ADDING,
 	.level = 0,
@@ -182,8 +188,10 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	int retval = -ENOMEM;
 
 #ifdef CONFIG_PID_SKIPLIST
-	printk(KERN_ALERT "PID_SKIPLIST: alloc_pid called for ns=%p (level=%d)\n",
-	       ns, ns->level);
+    if (!ns->pid_sl.header) {
+        printk(KERN_ERR "BUG: pid_skiplist not initialized for ns=%p!\n", ns);
+        return ERR_PTR(-EINVAL);
+    }
 #endif
 
 	pid = kmem_cache_alloc(ns->pid_cachep, GFP_KERNEL);
@@ -643,7 +651,7 @@ void __init pid_idr_init(void)
 #ifndef CONFIG_PID_SKIPLIST
 	idr_init(&init_pid_ns.idr);
 #else
-	// printk(KERN_ALERT "PID_SKIPLIST: Initializing init_pid_ns skiplist...\n");
+	printk(KERN_ALERT "PID_SKIPLIST: Initializing init_pid_ns skiplist...\n");
 
 	pid_skiplist_init(&init_pid_ns.pid_sl, GFP_KERNEL);
 	init_pid_ns.last_pid = 0;
