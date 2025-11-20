@@ -133,8 +133,9 @@ int pid_skiplist_insert(struct pid_skiplist *sl, int key,
 /* RCU 읽기: 호출자는 rcu_read_lock() / rcu_read_unlock() 감싸야 함 */
 struct pid *pid_skiplist_lookup_rcu(const struct pid_skiplist *sl, int key)
 {
-    if (!sl || !sl->header)
+    if (!sl || !sl->header) {
         return NULL;
+    }
 
     const struct pid_sl_node *x = sl->header;
     const struct pid_sl_node *next;
@@ -164,8 +165,9 @@ static void pid_sl_node_rcu_free(struct rcu_head *rcu)
 
 void pid_skiplist_remove(struct pid_skiplist *sl, int key)
 {
-    if (!sl || !sl->header)
+    if (!sl || !sl->header) {
         return;
+    }
 
 	struct pid_sl_node *update[PID_SL_MAX_LEVEL];
 	struct pid_sl_node *x = sl->header;

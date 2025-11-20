@@ -365,11 +365,17 @@ void disable_pid_allocation(struct pid_namespace *ns)
 // 수정 대상 함수
 struct pid *find_pid_ns(int nr, struct pid_namespace *ns)
 {
+	printk(KERN_INFO "find_pid_ns: nr=%d, ns=%p\n", nr, ns);
 #ifndef CONFIG_PID_SKIPLIST
 	return idr_find(&ns->idr, nr);
 #else
-	// RCU 보호는 호출자 책임 (idr_find와 동일)
-	return pid_skiplist_lookup_rcu(&ns->pid_sl, nr);
+    struct pid *pid;
+    
+    rcu_read_lock();
+    pid = pid_skiplist_lookup_rcu(&ns->pid_sl, nr);
+    rcu_read_unlock();
+    
+    return pid;
 #endif
 }
 EXPORT_SYMBOL_GPL(find_pid_ns);
