@@ -9,6 +9,7 @@
 #
 # Normal rules (sorted alphabetically)
 #
+*.log
 .*
 *.a
 *.asn1.[ch]
