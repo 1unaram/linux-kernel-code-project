@@ -262,6 +262,7 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 		/* wrap around: pid_min부터 start_pid 전까지 검색 */
 		if (nr < 0) {
 			int scan;
+			rcu_read_lock()
 			for (scan = pid_min; scan < start_pid; scan++) {
 				struct pid *existing = pid_skiplist_lookup_rcu(&tmp->pid_sl, scan);
 				if (!existing) {
@@ -273,9 +274,9 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 					}
 				}
 			}
+			rcu_read_unlock();
 		}
 
-		rcu_read_unlock();
 		spin_unlock_irq(&pidmap_lock);
 #endif
 
@@ -571,8 +572,16 @@ struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
 #ifndef CONFIG_PID_SKIPLIST
 	return idr_get_next(&ns->idr, &nr);
 #else
-	// RCU 보호는 호출자 책임
-	return pid_skiplist_find_ge_rcu(&ns->pid_sl, nr);
+	struct pid *pid;
+    
+    if (unlikely(!ns || !ns->pid_sl.header))
+        return NULL;
+    
+    rcu_read_lock();
+    pid = pid_skiplist_find_ge_rcu(&ns->pid_sl, nr);
+    rcu_read_unlock();
+    
+    return pid;
 #endif
 }
 
