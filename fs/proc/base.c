@@ -3232,11 +3232,29 @@ void proc_flush_task(struct task_struct *task)
 
 	pid = task_pid(task);
 	tgid = task_tgid(task);
+	
+    if (!pid) {
+        WARN_ON_ONCE(1);  // 디버그 경고
+        return;
+    }
+	if (!tgid) {
+        // tgid가 NULL인 경우도 처리
+        for (i = 0; i <= pid->level; i++) {
+            upid = &pid->numbers[i];
+            proc_flush_task_mnt(upid->ns->proc_mnt, upid->nr, 0);
+        }
+        return;
+    }
 
 	for (i = 0; i <= pid->level; i++) {
 		upid = &pid->numbers[i];
-		proc_flush_task_mnt(upid->ns->proc_mnt, upid->nr,
-					tgid->numbers[i].nr);
+        if (tgid && i <= tgid->level) {
+            proc_flush_task_mnt(upid->ns->proc_mnt, upid->nr,
+                        tgid->numbers[i].nr);
+        } else {
+            // tgid가 NULL이거나 level 초과
+            proc_flush_task_mnt(upid->ns->proc_mnt, upid->nr, 0);
+        }
 	}
 }
 

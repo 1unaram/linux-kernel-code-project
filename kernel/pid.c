@@ -262,7 +262,7 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 		/* wrap around: pid_min부터 start_pid 전까지 검색 */
 		if (nr < 0) {
 			int scan;
-			rcu_read_lock()
+			rcu_read_lock();
 			for (scan = pid_min; scan < start_pid; scan++) {
 				struct pid *existing = pid_skiplist_lookup_rcu(&tmp->pid_sl, scan);
 				if (!existing) {
