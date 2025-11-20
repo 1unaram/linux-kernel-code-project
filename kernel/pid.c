@@ -188,6 +188,10 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	int retval = -ENOMEM;
 
 #ifdef CONFIG_PID_SKIPLIST
+	int start_pid;  // ← 여기로 이동
+#endif
+
+#ifdef CONFIG_PID_SKIPLIST
     if (!ns->pid_sl.header) {
         printk(KERN_ERR "BUG: pid_skiplist not initialized for ns=%p!\n", ns);
         return ERR_PTR(-EINVAL);
@@ -227,44 +231,42 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 		/* SkipList 순환 할당 - 수정된 버전 */
 		spin_lock_irq(&pidmap_lock);
 
-		int start_pid = READ_ONCE(tmp->last_pid) + 1;
+		start_pid = READ_ONCE(tmp->last_pid) + 1;
 
-		// 최적화: 비어있는 skiplist라면 바로 pid_min 사용
-		if (tmp->pid_sl.header->forward[0] == NULL) {
-			// 완전히 비어있음
-			start_pid = (pid_min > RESERVED_PIDS) ? pid_min : RESERVED_PIDS;
-			if (start_pid < 1) start_pid = 1;
-
+		// 범위 체크
+		if (start_pid < pid_min || start_pid >= pid_max)
+			start_pid = pid_min;
+		
+		// ★ 빈 PID 찾기 (start_pid부터 pid_max까지)
+		nr = -1;
+		for (int scan = start_pid; scan < pid_max; scan++) {
+			struct pid *existing;
+			
 			rcu_read_lock();
-			retval = pid_skiplist_insert(&tmp->pid_sl, start_pid, NULL, GFP_ATOMIC);
+			existing = pid_skiplist_lookup_rcu(&tmp->pid_sl, scan);
 			rcu_read_unlock();
-
-			if (retval == 0) {
-				nr = start_pid;
-				WRITE_ONCE(tmp->last_pid, start_pid);
-			} else {
-				nr = retval;
+			
+			if (!existing) {
+				// 빈 PID 발견 - insert 시도
+				retval = pid_skiplist_insert(&tmp->pid_sl, scan, NULL, GFP_ATOMIC);
+				if (retval == 0) {
+					nr = scan;
+					WRITE_ONCE(tmp->last_pid, scan);
+					break;
+				}
 			}
-
-			spin_unlock_irq(&pidmap_lock);
-
-			if (nr < 0) {
-				retval = (nr == -ENOSPC) ? -EAGAIN : nr;
-				goto out_free;
-			}
-
-			pid->numbers[i].nr = nr;
-			pid->numbers[i].ns = tmp;
-			tmp = tmp->parent;
-			continue;  // 다음 namespace 레벨로
 		}
-
+		
 		/* wrap around: pid_min부터 start_pid 전까지 검색 */
+		int scan;
 		if (nr < 0) {
-			int scan;
-			rcu_read_lock();
 			for (scan = pid_min; scan < start_pid; scan++) {
-				struct pid *existing = pid_skiplist_lookup_rcu(&tmp->pid_sl, scan);
+				struct pid *existing;
+				
+				rcu_read_lock();
+				existing = pid_skiplist_lookup_rcu(&tmp->pid_sl, scan);
+				rcu_read_unlock();
+				
 				if (!existing) {
 					retval = pid_skiplist_insert(&tmp->pid_sl, scan, NULL, GFP_ATOMIC);
 					if (retval == 0) {
@@ -274,7 +276,6 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 					}
 				}
 			}
-			rcu_read_unlock();
 		}
 
 		spin_unlock_irq(&pidmap_lock);
@@ -343,12 +344,13 @@ out_free:
 #endif
 	}
 
-	if (ns->pid_allocated == PIDNS_ADDING)
+	if (ns->pid_allocated == PIDNS_ADDING) {
 #ifndef CONFIG_PID_SKIPLIST
 		idr_set_cursor(&ns->idr, 0);
 #else
 		WRITE_ONCE(ns->last_pid, 0);
 #endif
+	}
 
 	spin_unlock_irq(&pidmap_lock);
 
