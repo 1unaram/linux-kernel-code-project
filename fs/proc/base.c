@@ -3160,6 +3160,9 @@ static void proc_flush_task_mnt(struct vfsmount *mnt, pid_t pid, pid_t tgid)
 	char buf[10 + 1];
 	struct qstr name;
 
+	if (!mnt)
+    	return;
+
 	name.name = buf;
 	name.len = snprintf(buf, sizeof(buf), "%u", pid);
 	/* no ->d_hash() rejects on procfs */
@@ -3248,6 +3251,9 @@ void proc_flush_task(struct task_struct *task)
 
 	for (i = 0; i <= pid->level; i++) {
 		upid = &pid->numbers[i];
+		if (!upid->ns || !upid->ns->proc_mnt)
+			continue;
+		
         if (tgid && i <= tgid->level) {
             proc_flush_task_mnt(upid->ns->proc_mnt, upid->nr,
                         tgid->numbers[i].nr);
