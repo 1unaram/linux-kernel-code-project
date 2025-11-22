@@ -198,7 +198,7 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 #endif
 
 	pid = kmem_cache_alloc(ns->pid_cachep, GFP_KERNEL);
-	if (!pid) {k(KERN_ALERT "PID_SKIPLIST: kmem_cache_alloc FAILED!\n");
+	if (!pid) {
 		return ERR_PTR(retval);
 	}
 
