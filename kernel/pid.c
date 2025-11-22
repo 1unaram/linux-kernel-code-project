@@ -656,7 +656,7 @@ void __init pid_idr_init(void)
 	pid_skiplist_init(&init_pid_ns.pid_sl, GFP_KERNEL);
 	init_pid_ns.last_pid = 0;
 
-	printk("[pid_idr_init] PID SKIPLIST is successfully init!\n")
+	printk("[pid_idr_init] PID SKIPLIST is successfully init!\n");
 #endif
 
 	init_pid_ns.pid_cachep = KMEM_CACHE(pid,
