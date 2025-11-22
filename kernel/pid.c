@@ -193,22 +193,15 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 
 #ifdef CONFIG_PID_SKIPLIST
     if (!ns->pid_sl.header) {
-        // printk(KERN_ERR "BUG: pid_skiplist not initialized for ns=%p!\n", ns);
         return ERR_PTR(-EINVAL);
     }
 #endif
 
 	pid = kmem_cache_alloc(ns->pid_cachep, GFP_KERNEL);
-	if (!pid) {
-// #ifdef CONFIG_PID_SKIPLIST
-// 		printk(KERN_ALERT "PID_SKIPLIST: kmem_cache_alloc FAILED!\n");
-// #endif
+	if (!pid) {k(KERN_ALERT "PID_SKIPLIST: kmem_cache_alloc FAILED!\n");
 		return ERR_PTR(retval);
 	}
 
-// #ifdef CONFIG_PID_SKIPLIST
-// 	printk(KERN_ALERT "PID_SKIPLIST: pid struct allocated at %p\n", pid);
-// #endif
 
 	tmp = ns;
 	pid->level = ns->level;
@@ -319,22 +312,13 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	}
 	spin_unlock_irq(&pidmap_lock);
 
-// #ifdef CONFIG_PID_SKIPLIST
-// 	printk(KERN_ALERT "DEBUG: alloc_pid END (nr=%d)\n", nr);
-// #endif
 	return pid;
 
 out_unlock:
-// #ifdef CONFIG_PID_SKIPLIST
-// 	printk(KERN_ALERT "DEBUG: Jump to out_unlock");
-// #endif
 	spin_unlock_irq(&pidmap_lock);
 	put_pid_ns(ns);
 
 out_free:
-// #ifdef CONFIG_PID_SKIPLIST
-// 	printk(KERN_ALERT "DEBUG: Jump to out_free");
-// #endif
 	spin_lock_irq(&pidmap_lock);
 	while (++i <= ns->level) {
 		upid = pid->numbers + i;
@@ -369,7 +353,6 @@ void disable_pid_allocation(struct pid_namespace *ns)
 // 수정 대상 함수
 struct pid *find_pid_ns(int nr, struct pid_namespace *ns)
 {
-	// printk(KERN_INFO "find_pid_ns: nr=%d, ns=%p\n", nr, ns);
 #ifndef CONFIG_PID_SKIPLIST
 	return idr_find(&ns->idr, nr);
 #else
@@ -664,32 +647,16 @@ void __init pid_idr_init(void)
 				PIDS_PER_CPU_DEFAULT * num_possible_cpus()));
 	pid_max_min = max_t(int, pid_max_min,
 				PIDS_PER_CPU_MIN * num_possible_cpus());
-	// pr_info("pid_max: default: %u minimum: %u\n", pid_max, pid_max_min);
+	pr_info("pid_max: default: %u minimum: %u\n", pid_max, pid_max_min);
 
 #ifndef CONFIG_PID_SKIPLIST
 	idr_init(&init_pid_ns.idr);
 #else
-	// printk(KERN_ALERT "PID_SKIPLIST: Initializing init_pid_ns skiplist...\n");
 
 	pid_skiplist_init(&init_pid_ns.pid_sl, GFP_KERNEL);
 	init_pid_ns.last_pid = 0;
 
-	// printk(KERN_ALERT "PID_SKIPLIST: init_pid_ns.pid_sl.header = %p\n",
-	//        init_pid_ns.pid_sl.header);
-	// printk(KERN_ALERT "PID_SKIPLIST: init_pid_ns.pid_sl.level = %d\n",
-	//        init_pid_ns.pid_sl.level);
-
-	// 간단한 테스트
-	// int test_ret = pid_skiplist_insert(&init_pid_ns.pid_sl, 1, NULL, GFP_KERNEL);
-	// printk(KERN_ALERT "PID_SKIPLIST: Test insert PID 1: ret=%d\n", test_ret);
-
-	// struct pid *test_find = pid_skiplist_lookup_rcu(&init_pid_ns.pid_sl, 1);
-	// printk(KERN_ALERT "PID_SKIPLIST: Test lookup PID 1: found=%p (should be NULL)\n", test_find);
-
-	// pid_skiplist_remove(&init_pid_ns.pid_sl, 1);
-	// printk(KERN_ALERT "PID_SKIPLIST: Test remove PID 1: done\n");
-
-	// printk(KERN_ALERT "PID_SKIPLIST: Initialization complete!\n");
+	printk("[pid_idr_init] PID SKIPLIST is successfully init!\n")
 #endif
 
 	init_pid_ns.pid_cachep = KMEM_CACHE(pid,

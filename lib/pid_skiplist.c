@@ -84,11 +84,6 @@ int pid_skiplist_insert(struct pid_skiplist *sl, int key,
 	struct pid_sl_node *x = sl->header;
 	int i, lvl;
 
-// #ifdef CONFIG_PID_SKIPLIST
-//     printk(KERN_ALERT "DEBUG: skiplist_insert START (key=%d)\n", key);
-// #endif
-
-
 	for (i = sl->level - 1; i >= 0; i--) {
 		while (x->forward[i] && x->forward[i]->key < key)
 			x = x->forward[i];
@@ -121,11 +116,6 @@ int pid_skiplist_insert(struct pid_skiplist *sl, int key,
 		/* WRITE_ONCE 사용 권장 */
 		WRITE_ONCE(update[i]->forward[i], x);
 	}
-
-// #ifdef CONFIG_PID_SKIPLIST
-//     printk(KERN_ALERT "DEBUG: skiplist_insert END\n");
-// #endif
-
 
 	return 0;
 }
