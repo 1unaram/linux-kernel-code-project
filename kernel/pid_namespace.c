@@ -107,7 +107,7 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 #ifndef CONFIG_PID_RB_SKIPLIST
     idr_init(&ns->idr);
 #else
-    pid_skiplist_init(&ns->pid_sl, GFP_KERNEL);
+    pid_rb_skiplist_init(&ns->pid_sl, GFP_KERNEL);
 	ns->last_pid = 0;
 #endif
 
@@ -134,7 +134,7 @@ out_free_idr:
 #ifndef CONFIG_PID_RB_SKIPLIST
 	idr_destroy(&ns->idr);
 #else
-	pid_skiplist_destroy(&ns->pid_sl);
+	pid_rb_skiplist_destroy(&ns->pid_sl);
 #endif
 	kmem_cache_free(pid_ns_cachep, ns);
 out_dec:
@@ -160,7 +160,7 @@ static void destroy_pid_namespace(struct pid_namespace *ns)
 #ifndef CONFIG_PID_RB_SKIPLIST
 	idr_destroy(&ns->idr);
 #else
-	pid_skiplist_destroy(&ns->pid_sl);
+	pid_rb_skiplist_destroy(&ns->pid_sl);
 #endif
 	call_rcu(&ns->rcu, delayed_free_pidns);
 }
@@ -245,7 +245,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	}
 #else
 	struct pid_sl_node *cursor = NULL;
-	while((pid = pid_skiplist_iter_next_rcu(&pid_ns->pid_sl, &cursor, nr)) != NULL) {
+	while((pid = pid_rb_skiplist_iter_next_rcu(&pid_ns->pid_sl, &cursor, nr)) != NULL) {
 		task = pid_task(pid, PIDTYPE_PID);
 		if (task && !__fatal_signal_pending(task))
 			group_send_sig_info(SIGKILL, SEND_SIG_PRIV, task, PIDTYPE_MAX);

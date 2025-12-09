@@ -34,7 +34,7 @@ struct pid_namespace {
 #ifndef CONFIG_PID_RB_SKIPLIST
 	struct idr idr;
 #else
-	struct pid_skiplist pid_sl;
+	struct pid_rb_skiplist pid_sl;
 	int last_pid;
 #endif
 
