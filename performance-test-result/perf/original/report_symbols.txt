@@ -1,0 +1,100 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 957K of event 'cpu-clock'
+# Event count (approx.): 239313250000
+#
+# Children      Self  Symbol                                                                                                                                                              IPC   [IPC Coverage]
+# ........  ........  ..................................................................................................................................................................  ....................
+#
+    66.03%     0.00%  [k] secondary_startup_64                                                                                                                                            -      -            
+            |          
+            |--59.30%--start_secondary
+            |          |          
+            |           --59.30%--cpu_startup_entry
+            |                     |          
+            |                      --59.29%--do_idle
+            |                                |          
+            |                                |--58.52%--default_idle_call
+            |                                |          |          
+            |                                |           --58.52%--arch_cpu_idle
+            |                                |                     |          
+            |                                |                      --58.51%--native_safe_halt
+            |                                |          
+            |                                 --0.66%--schedule_idle
+            |                                           |          
+            |                                            --0.66%--__sched_text_start
+            |                                                      |          
+            |                                                       --0.64%--finish_task_switch
+            |          
+             --6.73%--x86_64_start_kernel
+                       x86_64_start_reservations
+                       start_kernel
+                       arch_call_rest_init
+                       rest_init
+                       |          
+                        --6.73%--cpu_startup_entry
+                                  |          
+                                   --6.73%--do_idle
+                                             |          
+                                              --6.65%--default_idle_call
+                                                        |          
+                                                         --6.65%--arch_cpu_idle
+                                                                   |          
+                                                                    --6.65%--native_safe_halt
+
+    66.03%     0.00%  [k] cpu_startup_entry                                                                                                                                               -      -            
+            |          
+             --66.03%--cpu_startup_entry
+                       |          
+                        --66.02%--do_idle
+                                  |          
+                                  |--65.18%--default_idle_call
+                                  |          |          
+                                  |           --65.17%--arch_cpu_idle
+                                  |                     |          
+                                  |                      --65.16%--native_safe_halt
+                                  |          
+                                   --0.73%--schedule_idle
+                                             |          
+                                              --0.72%--__sched_text_start
+                                                        |          
+                                                         --0.70%--finish_task_switch
+
+    66.02%     0.03%  [k] do_idle                                                                                                                                                         -      -            
+            |          
+             --65.99%--do_idle
+                       |          
+                       |--65.18%--default_idle_call
+                       |          |          
+                       |           --65.17%--arch_cpu_idle
+                       |                     |          
+                       |                      --65.16%--native_safe_halt
+                       |          
+                        --0.73%--schedule_idle
+                                  |          
+                                   --0.72%--__sched_text_start
+                                             |          
+                                              --0.70%--finish_task_switch
+
+    65.18%     0.01%  [k] default_idle_call                                                                                                                                               -      -            
+            |          
+             --65.17%--default_idle_call
+                       arch_cpu_idle
+                       |          
+                        --65.16%--native_safe_halt
+
+    65.18%     0.01%  [k] arch_cpu_idle                                                                                                                                                   -      -            
+            |          
+             --65.17%--arch_cpu_idle
+                       |          
+                        --65.16%--native_safe_halt
+
+    65.16%    65.14%  [k] native_safe_halt                                                                                                                                                -      -            
+            |          
+             --65.14%--secondary_startup_64
+                       |          
+                       |--58.49%--start_secondary
+                       |          cpu_startup_entry

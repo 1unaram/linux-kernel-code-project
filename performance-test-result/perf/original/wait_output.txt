@@ -1,0 +1,50 @@
+stress-ng: info:  [653081] dispatching hogs: 4 wait
+stress-ng: info:  [653081] successful run completed in 20.00s
+stress-ng: info:  [653081] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [653081]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [653081] wait                224     20.00     11.87    147.48        11.20         1.41
+stress-ng: info:  [653094] dispatching hogs: 4 wait
+stress-ng: info:  [653094] successful run completed in 20.00s
+stress-ng: info:  [653094] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [653094]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [653094] wait                221     20.00     11.89    150.91        11.05         1.36
+stress-ng: info:  [653107] dispatching hogs: 4 wait
+stress-ng: info:  [653107] successful run completed in 20.00s
+stress-ng: info:  [653107] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [653107]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [653107] wait                209     20.00     11.95    151.69        10.45         1.28
+stress-ng: info:  [653120] dispatching hogs: 4 wait
+stress-ng: info:  [653120] successful run completed in 20.00s
+stress-ng: info:  [653120] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [653120]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [653120] wait                200     20.00     11.55    147.30        10.00         1.26
+stress-ng: info:  [653133] dispatching hogs: 4 wait
+stress-ng: info:  [653133] successful run completed in 20.00s
+stress-ng: info:  [653133] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [653133]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [653133] wait                215     20.00     11.33    144.77        10.75         1.38
+stress-ng: info:  [653146] dispatching hogs: 4 wait
+stress-ng: info:  [653146] successful run completed in 20.00s
+stress-ng: info:  [653146] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [653146]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [653146] wait                233     20.00     12.18    150.87        11.65         1.43
+stress-ng: info:  [653159] dispatching hogs: 4 wait
+stress-ng: info:  [653159] successful run completed in 20.00s
+stress-ng: info:  [653159] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [653159]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [653159] wait                221     20.00     12.21    152.36        11.05         1.34
+stress-ng: info:  [653172] dispatching hogs: 4 wait
+stress-ng: info:  [653172] successful run completed in 20.00s
+stress-ng: info:  [653172] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [653172]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [653172] wait                227     20.00     12.41    149.16        11.35         1.40
+stress-ng: info:  [653185] dispatching hogs: 4 wait
+stress-ng: info:  [653185] successful run completed in 20.00s
+stress-ng: info:  [653185] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [653185]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [653185] wait                219     20.00     11.91    152.27        10.95         1.33
+stress-ng: info:  [653198] dispatching hogs: 4 wait
+stress-ng: info:  [653198] successful run completed in 20.00s
+stress-ng: info:  [653198] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [653198]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [653198] wait                224     20.00     12.25    152.87        11.20         1.36

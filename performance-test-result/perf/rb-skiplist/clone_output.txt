@@ -1,0 +1,50 @@
+stress-ng: info:  [3591697] dispatching hogs: 4 clone
+stress-ng: info:  [3591697] successful run completed in 30.02s
+stress-ng: info:  [3591697] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3591697]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3591697] clone             33131     30.02     13.69    142.93      1103.72       211.54
+stress-ng: info:  [3626721] dispatching hogs: 4 clone
+stress-ng: info:  [3626721] successful run completed in 30.03s
+stress-ng: info:  [3626721] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3626721]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3626721] clone             33374     30.03     13.77    144.80      1111.52       210.47
+stress-ng: info:  [3661342] dispatching hogs: 4 clone
+stress-ng: info:  [3661342] successful run completed in 30.02s
+stress-ng: info:  [3661342] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3661342]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3661342] clone             31728     30.02     12.43    144.27      1056.92       202.48
+stress-ng: info:  [3694291] dispatching hogs: 4 clone
+stress-ng: info:  [3694291] successful run completed in 30.03s
+stress-ng: info:  [3694291] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3694291]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3694291] clone             31252     30.02     12.36    144.11      1040.90       199.73
+stress-ng: info:  [3726572] dispatching hogs: 4 clone
+stress-ng: info:  [3726572] successful run completed in 30.03s
+stress-ng: info:  [3726572] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3726572]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3726572] clone             31133     30.02     12.25    143.45      1036.92       199.96
+stress-ng: info:  [3758765] dispatching hogs: 4 clone
+stress-ng: info:  [3758765] successful run completed in 30.02s
+stress-ng: info:  [3758765] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3758765]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3758765] clone             30051     30.02     11.24    146.34      1001.01       190.70
+stress-ng: info:  [3789826] dispatching hogs: 4 clone
+stress-ng: info:  [3789826] successful run completed in 30.03s
+stress-ng: info:  [3789826] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3789826]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3789826] clone             30168     30.02     10.35    148.08      1004.93       190.42
+stress-ng: info:  [3820984] dispatching hogs: 4 clone
+stress-ng: info:  [3820984] successful run completed in 30.02s
+stress-ng: info:  [3820984] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3820984]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3820984] clone             28517     30.02     10.30    146.65       949.92       181.69
+stress-ng: info:  [3850450] dispatching hogs: 4 clone
+stress-ng: info:  [3850450] successful run completed in 30.02s
+stress-ng: info:  [3850450] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3850450]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3850450] clone             27937     30.02      9.69    148.39       930.51       176.73
+stress-ng: info:  [3879331] dispatching hogs: 4 clone
+stress-ng: info:  [3879331] successful run completed in 30.02s
+stress-ng: info:  [3879331] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3879331]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3879331] clone             27710     30.02      9.63    148.18       923.07       175.59

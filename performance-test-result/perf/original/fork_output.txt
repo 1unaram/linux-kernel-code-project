@@ -1,0 +1,50 @@
+stress-ng: info:  [1550056] dispatching hogs: 8 fork
+stress-ng: info:  [1550056] successful run completed in 30.00s
+stress-ng: info:  [1550056] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [1550056]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [1550056] fork             735566     30.00     91.74    136.27     24518.64      3226.03
+stress-ng: info:  [2285639] dispatching hogs: 8 fork
+stress-ng: info:  [2285639] successful run completed in 30.00s
+stress-ng: info:  [2285639] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [2285639]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [2285639] fork             680205     30.00     91.83    136.37     22673.46      2980.74
+stress-ng: info:  [2965858] dispatching hogs: 8 fork
+stress-ng: info:  [2965858] successful run completed in 30.00s
+stress-ng: info:  [2965858] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [2965858]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [2965858] fork             673106     30.00     91.94    137.92     22436.82      2928.33
+stress-ng: info:  [3638977] dispatching hogs: 8 fork
+stress-ng: info:  [3638977] successful run completed in 30.00s
+stress-ng: info:  [3638977] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3638977]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3638977] fork             695363     30.00     92.06    138.34     23178.57      3018.07
+stress-ng: info:  [140755] dispatching hogs: 8 fork
+stress-ng: info:  [140755] successful run completed in 30.00s
+stress-ng: info:  [140755] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [140755]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [140755] fork             667451     30.00     92.13    137.97     22248.10      2900.70
+stress-ng: info:  [808218] dispatching hogs: 8 fork
+stress-ng: info:  [808218] successful run completed in 30.00s
+stress-ng: info:  [808218] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [808218]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [808218] fork             697313     30.00     92.31    138.17     23243.76      3025.48
+stress-ng: info:  [1505604] dispatching hogs: 8 fork
+stress-ng: info:  [1505604] successful run completed in 30.00s
+stress-ng: info:  [1505604] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [1505604]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [1505604] fork             672928     30.00     92.07    137.96     22430.93      2925.39
+stress-ng: info:  [2178549] dispatching hogs: 8 fork
+stress-ng: info:  [2178549] successful run completed in 30.00s
+stress-ng: info:  [2178549] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [2178549]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [2178549] fork             663325     30.00     91.74    138.74     22110.84      2878.02
+stress-ng: info:  [2841888] dispatching hogs: 8 fork
+stress-ng: info:  [2841888] successful run completed in 30.00s
+stress-ng: info:  [2841888] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [2841888]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [2841888] fork             697507     30.00     91.66    138.71     23249.95      3027.77
+stress-ng: info:  [3539408] dispatching hogs: 8 fork
+stress-ng: info:  [3539408] successful run completed in 30.00s
+stress-ng: info:  [3539408] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3539408]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3539408] fork             694129     30.00     91.02    138.65     23137.48      3022.29

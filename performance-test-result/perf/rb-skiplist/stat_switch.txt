@@ -1,0 +1,10 @@
+# started on Sun Nov 30 08:04:00 2025
+
+
+ Performance counter stats for 'stress-ng --switch 8 --timeout 30s --metrics-brief' (10 runs):
+
+        67,666,192      context-switches                                              ( +-  3.43% )
+               355      cpu-migrations                                                ( +-  5.09% )
+
+         30.007231 +- 0.000307 seconds time elapsed  ( +-  0.00% )
+

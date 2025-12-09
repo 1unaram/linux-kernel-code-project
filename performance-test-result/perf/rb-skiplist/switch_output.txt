@@ -1,0 +1,130 @@
+stress-ng: info:  [3908007] dispatching hogs: 8 switch
+stress-ng: info:  [3908008] stress-ng-switch: 12031.69 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908011] stress-ng-switch: 7369.07 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908009] stress-ng-switch: 6176.51 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908013] stress-ng-switch: 8508.83 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908010] stress-ng-switch: 7065.09 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908014] stress-ng-switch: 7453.31 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908017] stress-ng-switch: 7223.08 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908015] stress-ng-switch: 6988.49 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908007] successful run completed in 30.00s
+stress-ng: info:  [3908007] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3908007]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3908007] switch         31664250     30.00     21.07    196.05   1055465.19    145837.56
+stress-ng: info:  [3908026] dispatching hogs: 8 switch
+stress-ng: info:  [3908028] stress-ng-switch: 8375.50 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908027] stress-ng-switch: 7248.37 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908029] stress-ng-switch: 6626.60 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908030] stress-ng-switch: 8635.21 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908031] stress-ng-switch: 6612.24 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908033] stress-ng-switch: 6641.95 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908035] stress-ng-switch: 7047.93 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908038] stress-ng-switch: 5262.76 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908026] successful run completed in 30.00s
+stress-ng: info:  [3908026] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3908026]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3908026] switch         34732308     30.00     22.96    200.30   1157731.98    155568.88
+stress-ng: info:  [3908043] dispatching hogs: 8 switch
+stress-ng: info:  [3908045] stress-ng-switch: 7650.66 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908044] stress-ng-switch: 7309.03 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908047] stress-ng-switch: 6936.88 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908046] stress-ng-switch: 8144.19 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908050] stress-ng-switch: 6335.50 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908053] stress-ng-switch: 7553.86 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908048] stress-ng-switch: 7366.36 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908055] stress-ng-switch: 7197.97 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908043] successful run completed in 30.00s
+stress-ng: info:  [3908043] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3908043]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3908043] switch         32980854     30.00     21.99    200.26   1099346.24    148395.29
+stress-ng: info:  [3908060] dispatching hogs: 8 switch
+stress-ng: info:  [3908061] stress-ng-switch: 6454.16 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908062] stress-ng-switch: 6248.62 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908063] stress-ng-switch: 7168.78 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908064] stress-ng-switch: 7696.65 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908065] stress-ng-switch: 7198.38 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908068] stress-ng-switch: 8088.88 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908070] stress-ng-switch: 7715.63 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908072] stress-ng-switch: 7557.96 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908060] successful run completed in 30.00s
+stress-ng: info:  [3908060] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3908060]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3908060] switch         33265390     30.00     21.37    200.37   1108833.38    150019.80
+stress-ng: info:  [3908077] dispatching hogs: 8 switch
+stress-ng: info:  [3908078] stress-ng-switch: 8276.22 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908079] stress-ng-switch: 9238.08 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908080] stress-ng-switch: 7050.65 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908081] stress-ng-switch: 9305.41 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908082] stress-ng-switch: 6504.80 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908084] stress-ng-switch: 6602.71 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908086] stress-ng-switch: 6871.79 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908089] stress-ng-switch: 9317.12 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908077] successful run completed in 30.00s
+stress-ng: info:  [3908077] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3908077]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3908077] switch         31091907     30.00     21.47    199.41   1036383.37    140763.79
+stress-ng: info:  [3908094] dispatching hogs: 8 switch
+stress-ng: info:  [3908096] stress-ng-switch: 5814.59 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908097] stress-ng-switch: 6153.88 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908095] stress-ng-switch: 6051.43 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908098] stress-ng-switch: 6061.44 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908100] stress-ng-switch: 7750.56 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908103] stress-ng-switch: 8679.58 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908105] stress-ng-switch: 7704.43 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908107] stress-ng-switch: 7061.75 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908094] successful run completed in 30.00s
+stress-ng: info:  [3908094] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3908094]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3908094] switch         35410006     30.00     22.48    202.28   1180323.29    157545.85
+stress-ng: info:  [3908111] dispatching hogs: 8 switch
+stress-ng: info:  [3908113] stress-ng-switch: 5522.52 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908112] stress-ng-switch: 5638.86 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908115] stress-ng-switch: 4858.46 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908114] stress-ng-switch: 5880.62 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908116] stress-ng-switch: 8761.59 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908118] stress-ng-switch: 4990.79 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908120] stress-ng-switch: 8788.16 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908123] stress-ng-switch: 5341.35 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908111] successful run completed in 30.00s
+stress-ng: info:  [3908111] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3908111]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3908111] switch         40493702     30.00     22.61    201.44   1349772.47    180735.11
+stress-ng: info:  [3908128] dispatching hogs: 8 switch
+stress-ng: info:  [3908131] stress-ng-switch: 6850.90 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908130] stress-ng-switch: 5923.73 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908129] stress-ng-switch: 5227.15 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908132] stress-ng-switch: 4916.54 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908133] stress-ng-switch: 5202.90 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908137] stress-ng-switch: 4984.81 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908135] stress-ng-switch: 5595.59 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908139] stress-ng-switch: 9559.70 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908128] successful run completed in 30.00s
+stress-ng: info:  [3908128] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3908128]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3908128] switch         41567932     30.00     22.94    202.84   1385581.24    184108.12
+stress-ng: info:  [3908145] dispatching hogs: 8 switch
+stress-ng: info:  [3908146] stress-ng-switch: 7284.85 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908147] stress-ng-switch: 5931.63 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908148] stress-ng-switch: 6193.50 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908149] stress-ng-switch: 5565.50 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908150] stress-ng-switch: 5821.30 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908152] stress-ng-switch: 7767.05 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908154] stress-ng-switch: 7538.64 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908157] stress-ng-switch: 7444.54 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908145] successful run completed in 30.00s
+stress-ng: info:  [3908145] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3908145]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3908145] switch         36434597     30.00     21.92    199.99   1214478.30    164186.37
+stress-ng: info:  [3908165] dispatching hogs: 8 switch
+stress-ng: info:  [3908167] stress-ng-switch: 5382.87 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908168] stress-ng-switch: 7104.35 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908169] stress-ng-switch: 5873.42 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908166] stress-ng-switch: 7642.29 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908170] stress-ng-switch: 5303.86 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908172] stress-ng-switch: 6451.09 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908175] stress-ng-switch: 6155.85 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908178] stress-ng-switch: 6467.15 nanoseconds per context switch (based on parent run time)
+stress-ng: info:  [3908165] successful run completed in 30.00s
+stress-ng: info:  [3908165] stressor       bogo ops real time  usr time  sys time   bogo ops/s   bogo ops/s
+stress-ng: info:  [3908165]                           (secs)    (secs)    (secs)   (real time) (usr+sys time)
+stress-ng: info:  [3908165] switch         38647733     30.00     23.76    204.33   1288243.17    169440.72

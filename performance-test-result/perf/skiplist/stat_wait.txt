@@ -1,0 +1,11 @@
+# started on Sun Nov 30 07:41:05 2025
+
+
+ Performance counter stats for 'stress-ng --wait 4 --timeout 20s --metrics-brief' (10 runs):
+
+   <not supported>      cycles                                                      
+   <not supported>      instructions                                                
+        17,798,439      context-switches                                              ( +-  3.53% )
+
+         20.006133 +- 0.000211 seconds time elapsed  ( +-  0.00% )
+

@@ -1,0 +1,13 @@
+# started on Sun Nov 30 07:25:21 2025
+
+
+ Performance counter stats for 'stress-ng --fork 8 --timeout 30s --metrics-brief' (10 runs):
+
+        197,541.60 msec task-clock                #    6.583 CPUs utilized            ( +-  0.21% )
+           777,678      context-switches          #    0.004 M/sec                    ( +-  1.04% )
+        25,052,612      page-faults               #    0.127 M/sec                    ( +-  1.00% )
+   <not supported>      cycles                                                      
+   <not supported>      instructions                                                
+
+         30.006790 +- 0.000639 seconds time elapsed  ( +-  0.00% )
+
