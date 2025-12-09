@@ -21,13 +21,7 @@ static int loadavg_proc_show(struct seq_file *m, void *v)
 		LOAD_INT(avnrun[1]), LOAD_FRAC(avnrun[1]),
 		LOAD_INT(avnrun[2]), LOAD_FRAC(avnrun[2]),
 		nr_running(), nr_threads,
-
-	#ifndef CONFIG_PID_SKIPLIST
-		idr_get_cursor(&task_active_pid_ns(current)->idr) - 1);
-	#else
-		pid_ns_get_cursor(task_active_pid_ns(current)) - 1);
-	#endif
-
+		pid_ns_get_cursor(task_active_pid_ns(current)) - 1); // **checkpoint**
 	return 0;
 }
 

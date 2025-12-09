@@ -1,7 +1,7 @@
 // include/linux/pid_rb_skiplist.h
 // SPDX-License-Identifier: GPL-2.0
-#ifndef _LINUX_PID_SKIPLIST_H
-#define _LINUX_PID_SKIPLIST_H
+#ifndef _LINUX_PID_RB_SKIPLIST_H
+#define _LINUX_PID_RB_SKIPLIST_H
 
 #include <linux/types.h>
 #include <linux/rbtree.h>
@@ -24,7 +24,7 @@ struct pid_sl_node {
 	bool in_rb_tree;  // 이 노드가 RB-tree에 있는지 표시
 };
 
-struct pid_skiplist {
+struct pid_rb_skiplist {
 	int level;
 	struct pid_sl_node *header;
 
@@ -34,39 +34,39 @@ struct pid_skiplist {
 
 #ifdef CONFIG_PID_RB_SKIPLIST
 
-void pid_skiplist_init(struct pid_skiplist *sl, gfp_t gfp);
-void pid_skiplist_destroy(struct pid_skiplist *sl);
-int pid_skiplist_insert(struct pid_skiplist *sl, int key,
+void pid_rb_skiplist_init(struct pid_rb_skiplist *sl, gfp_t gfp);
+void pid_rb_skiplist_destroy(struct pid_rb_skiplist *sl);
+int pid_rb_skiplist_insert(struct pid_rb_skiplist *sl, int key,
 			struct pid *pid, gfp_t gfp);
-struct pid *pid_skiplist_lookup_rcu(const struct pid_skiplist *sl, int key);
-void pid_skiplist_remove(struct pid_skiplist *sl, int key);
+struct pid *pid_rb_skiplist_lookup_rcu(const struct pid_rb_skiplist *sl, int key);
+void pid_rb_skiplist_remove(struct pid_rb_skiplist *sl, int key);
 
 // iter / find_ge 함수
-struct pid *pid_skiplist_iter_next_rcu(const struct pid_skiplist *sl,
+struct pid *pid_rb_skiplist_iter_next_rcu(const struct pid_rb_skiplist *sl,
 					struct pid_sl_node **cursor,
 					int start_key);
-struct pid *pid_skiplist_find_ge_rcu(const struct pid_skiplist *sl, int key);
+struct pid *pid_rb_skiplist_find_ge_rcu(const struct pid_rb_skiplist *sl, int key);
 
 #else // !CONFIG_PID_RB_SKIPLIST
 
-static inline void pid_skiplist_init(struct pid_skiplist *sl, gfp_t gfp) {}
-static inline void pid_skiplist_destroy(struct pid_skiplist *sl) {}
-static inline int pid_skiplist_insert(struct pid_skiplist *sl, int key,
+static inline void pid_rb_skiplist_init(struct pid_rb_skiplist *sl, gfp_t gfp) {}
+static inline void pid_rb_skiplist_destroy(struct pid_rb_skiplist *sl) {}
+static inline int pid_rb_skiplist_insert(struct pid_rb_skiplist *sl, int key,
 				      struct pid *pid, gfp_t gfp)
 {
 	return -EOPNOTSUPP;
 }
 
 static inline struct pid *
-pid_skiplist_lookup_rcu(const struct pid_skiplist *sl, int key)
+pid_rb_skiplist_lookup_rcu(const struct pid_rb_skiplist *sl, int key)
 {
 	return NULL;
 }
 
-static inline void pid_skiplist_remove(struct pid_skiplist *sl, int key) {}
+static inline void pid_rb_skiplist_remove(struct pid_rb_skiplist *sl, int key) {}
 
 static inline struct pid *
-pid_skiplist_iter_next_rcu(const struct pid_skiplist *sl,
+pid_rb_skiplist_iter_next_rcu(const struct pid_rb_skiplist *sl,
 			    struct pid_sl_node **cursor,
 			    int start_key)
 {
@@ -74,7 +74,7 @@ pid_skiplist_iter_next_rcu(const struct pid_skiplist *sl,
 }
 
 static inline struct pid *
-pid_skiplist_find_ge_rcu(const struct pid_skiplist *sl, int key)
+pid_rb_skiplist_find_ge_rcu(const struct pid_rb_skiplist *sl, int key)
 {
 	return NULL;
 }

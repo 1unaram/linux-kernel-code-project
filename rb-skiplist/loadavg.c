@@ -22,7 +22,7 @@ static int loadavg_proc_show(struct seq_file *m, void *v)
 		LOAD_INT(avnrun[2]), LOAD_FRAC(avnrun[2]),
 		nr_running(), nr_threads,
 
-	#ifndef PID_RB_SKIPLIST
+	#ifndef CONFIG_PID_RB_SKIPLIST
 		idr_get_cursor(&task_active_pid_ns(current)->idr) - 1);
 	#else
 		pid_ns_get_cursor(task_active_pid_ns(current)) - 1);

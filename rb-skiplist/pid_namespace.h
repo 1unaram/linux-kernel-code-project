@@ -34,7 +34,7 @@ struct pid_namespace {
 #ifndef CONFIG_PID_RB_SKIPLIST
 	struct idr idr;
 #else
-	struct pid_skiplist pid_sl;
+	struct pid_rb_skiplist pid_sl;
 	int last_pid;
 #endif
 
@@ -107,7 +107,7 @@ void pidhash_init(void);
 void pid_idr_init(void);
 
 #ifdef CONFIG_PID_RB_SKIPLIST
-/* skiplist 버전에서는 last_pid를 cursor로 사용 */
+/* rb-skiplist 버전에서는 last_pid를 cursor로 사용 */
 static inline int pid_ns_get_cursor(struct pid_namespace *ns)
 {
 	return ns->last_pid;
