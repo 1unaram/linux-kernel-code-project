@@ -32,6 +32,8 @@
 -   **`skiplist`**: Skip List가 적용된 **전체 Linux 5.4.214 커널 소스코드**
 -   **`rb-skiplist`**: RB-Skip List가 적용된 **전체 Linux 5.4.214 커널 소스코드**
 
+<br>
+
 ### 브랜치별 사용 방법
 
 ```bash
@@ -47,6 +49,8 @@ cd rb-skiplist-kernel
 make menuconfig
 make -j$(nproc)
 ```
+
+<br>
 
 ## Directory Structure (master 브랜치)
 
