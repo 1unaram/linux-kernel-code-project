@@ -11,8 +11,8 @@
 #include <linux/idr.h>
 #include <linux/mm.h>
 
-#ifdef CONFIG_PID_SKIPLIST
-#include <linux/pid_skiplist.h>
+#ifdef CONFIG_PID_RB_SKIPLIST
+#include <linux/pid_rb_skiplist.h>
 #endif
 
 struct task_struct;
@@ -31,7 +31,7 @@ enum {
 struct pid_namespace {
 	struct kref kref;
 
-#ifndef CONFIG_PID_SKIPLIST
+#ifndef CONFIG_PID_RB_SKIPLIST
 	struct idr idr;
 #else
 	struct pid_skiplist pid_sl;
@@ -106,7 +106,7 @@ extern struct pid_namespace *task_active_pid_ns(struct task_struct *tsk);
 void pidhash_init(void);
 void pid_idr_init(void);
 
-#ifdef CONFIG_PID_SKIPLIST
+#ifdef CONFIG_PID_RB_SKIPLIST
 /* skiplist 버전에서는 last_pid를 cursor로 사용 */
 static inline int pid_ns_get_cursor(struct pid_namespace *ns)
 {

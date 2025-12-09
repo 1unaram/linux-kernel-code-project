@@ -6,8 +6,8 @@
 #include <linux/wait.h>
 #include <linux/refcount.h>
 
-#ifdef printk_PID_SKIPLIST
-#include <linux/pid_skiplist.h>
+#ifdef CONFIG_PID_RB_SKIPLIST
+#include <linux/pid_rb_skiplist.h>
 #endif
 
 enum pid_type

@@ -24,8 +24,8 @@
 #include <linux/sched/signal.h>
 #include <linux/idr.h>
 
-#ifdef CONFIG_PID_SKIPLIST
-#include <linux/pid_skiplist.h>
+#ifdef CONFIG_PID_RB_SKIPLIST
+#include <linux/pid_rb_skiplist.h>
 #endif
 
 static DEFINE_MUTEX(pid_caches_mutex);
@@ -104,7 +104,7 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	if (ns == NULL)
 		goto out_dec;
 
-#ifndef CONFIG_PID_SKIPLIST
+#ifndef CONFIG_PID_RB_SKIPLIST
     idr_init(&ns->idr);
 #else
     pid_skiplist_init(&ns->pid_sl, GFP_KERNEL);
@@ -131,7 +131,7 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	return ns;
 
 out_free_idr:
-#ifndef CONFIG_PID_SKIPLIST
+#ifndef CONFIG_PID_RB_SKIPLIST
 	idr_destroy(&ns->idr);
 #else
 	pid_skiplist_destroy(&ns->pid_sl);
@@ -157,7 +157,7 @@ static void destroy_pid_namespace(struct pid_namespace *ns)
 {
 	ns_free_inum(&ns->ns);
 
-#ifndef CONFIG_PID_SKIPLIST
+#ifndef CONFIG_PID_RB_SKIPLIST
 	idr_destroy(&ns->idr);
 #else
 	pid_skiplist_destroy(&ns->pid_sl);
@@ -237,7 +237,7 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 		PID namespace 종료 시 속한 모든 프로세스에 SIGKILL 신호 전송
 		nr(=2)부터 시작해서 모든 PID 엔트리를 순회
 	*/
-#ifndef CONFIG_PID_SKIPLIST
+#ifndef CONFIG_PID_RB_SKIPLIST
 	idr_for_each_entry_continue(&pid_ns->idr, pid, nr) {
 		task = pid_task(pid, PIDTYPE_PID);
 		if (task && !__fatal_signal_pending(task))
@@ -316,7 +316,7 @@ static int pid_ns_ctl_handler(struct ctl_table *table, int write,
 	/*
 	CHECKPOINT_RESTORE 기능에서 마지막으로 할당된 PID 값을 읽고 쓰는 부분
 	*/
-#ifndef CONFIG_PID_SKIPLIST
+#ifndef CONFIG_PID_RB_SKIPLIST
 	next = idr_get_cursor(&pid_ns->idr) - 1; // IDR의 현재 커서 위치(다음에 할당될 PID) 가져오기
 
 	tmp.data = &next;
