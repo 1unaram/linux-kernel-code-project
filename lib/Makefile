@@ -292,4 +292,4 @@ obj-$(CONFIG_GENERIC_LIB_UCMPDI2) += ucmpdi2.o
 obj-$(CONFIG_OBJAGG) += objagg.o
 
 # skiplist
-obj-$(CONFIG_PID_SKIPLIST) += pid_skiplist.o
+obj-$(PID_RB_SKIPLIST) += pid_rb_skiplist.o

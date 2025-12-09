@@ -2245,6 +2245,6 @@ config ARCH_HAS_SYSCALL_WRAPPER
 	def_bool n
 
 
-config PID_SKIPLIST
-    bool "Use skiplist for PID namespace"
+config PID_RB_SKIPLIST
+    bool "Use RB-skiplist for PID namespace"
 	default n
