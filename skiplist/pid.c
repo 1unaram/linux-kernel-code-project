@@ -79,11 +79,11 @@ struct pid_namespace init_pid_ns = {
 #ifndef CONFIG_PID_SKIPLIST
 	.idr = IDR_INIT(init_pid_ns.idr),
 #else
-    .pid_sl = {                   
+    .pid_sl = {
         .level = 0,
         .header = NULL,
     },
-    .last_pid = 0,                 
+    .last_pid = 0,
 #endif
 	.pid_allocated = PIDNS_ADDING,
 	.level = 0,
@@ -133,8 +133,6 @@ static void delayed_put_pid(struct rcu_head *rhp)
 	put_pid(pid);
 }
 
-
-// 수정 대상 함수
 void free_pid(struct pid *pid)
 {
 	/* We can be called with write_lock_irq(&tasklist_lock) held */
@@ -175,9 +173,6 @@ void free_pid(struct pid *pid)
 	call_rcu(&pid->rcu, delayed_put_pid);
 }
 
-// 수정 대상 함수
-// kernel/pid.c - alloc_pid() 함수 수정본
-
 struct pid *alloc_pid(struct pid_namespace *ns)
 {
 	struct pid *pid;
@@ -188,7 +183,7 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	int retval = -ENOMEM;
 
 #ifdef CONFIG_PID_SKIPLIST
-	int start_pid;  // ← 여기로 이동
+	int start_pid;
 #endif
 
 #ifdef CONFIG_PID_SKIPLIST
@@ -221,7 +216,7 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 		spin_unlock_irq(&pidmap_lock);
 		idr_preload_end();
 #else
-		/* SkipList 순환 할당 - 수정된 버전 */
+		// SkipList 순환 할당 - 수정된 버전
 		spin_lock_irq(&pidmap_lock);
 
 		start_pid = READ_ONCE(tmp->last_pid) + 1;
@@ -229,17 +224,17 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 		// 범위 체크
 		if (start_pid < pid_min || start_pid >= pid_max)
 			start_pid = pid_min;
-		
-		// ★ 빈 PID 찾기 (start_pid부터 pid_max까지)
+
+		// 빈 PID 찾기 (start_pid부터 pid_max까지)
 		nr = -1;
 		int scan;
 		for (scan = start_pid; scan < pid_max; scan++) {
 			struct pid *existing;
-			
+
 			rcu_read_lock();
 			existing = pid_skiplist_lookup_rcu(&tmp->pid_sl, scan);
 			rcu_read_unlock();
-			
+
 			if (!existing) {
 				// 빈 PID 발견 - insert 시도
 				retval = pid_skiplist_insert(&tmp->pid_sl, scan, NULL, GFP_ATOMIC);
@@ -250,17 +245,17 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 				}
 			}
 		}
-		
-		/* wrap around: pid_min부터 start_pid 전까지 검색 */
+
+		// wrap around: pid_min부터 start_pid 전까지 검색
 		if (nr < 0) {
 			int scan2;
 			for (scan2 = pid_min; scan2 < start_pid; scan2++) {
 				struct pid *existing;
-				
+
 				rcu_read_lock();
 				existing = pid_skiplist_lookup_rcu(&tmp->pid_sl, scan2);
 				rcu_read_unlock();
-				
+
 				if (!existing) {
 					retval = pid_skiplist_insert(&tmp->pid_sl, scan2, NULL, GFP_ATOMIC);
 					if (retval == 0) {
@@ -305,7 +300,7 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 #ifndef CONFIG_PID_SKIPLIST
 		idr_replace(&upid->ns->idr, pid, upid->nr);
 #else
-		/* NULL을 실제 pid로 교체 */
+		// NULL을 실제 pid로 교체 */
 		pid_skiplist_insert(&upid->ns->pid_sl, upid->nr, pid, GFP_ATOMIC);
 #endif
 		upid->ns->pid_allocated++;
@@ -350,18 +345,17 @@ void disable_pid_allocation(struct pid_namespace *ns)
 	spin_unlock_irq(&pidmap_lock);
 }
 
-// 수정 대상 함수
 struct pid *find_pid_ns(int nr, struct pid_namespace *ns)
 {
 #ifndef CONFIG_PID_SKIPLIST
 	return idr_find(&ns->idr, nr);
 #else
     struct pid *pid;
-    
+
     rcu_read_lock();
     pid = pid_skiplist_lookup_rcu(&ns->pid_sl, nr);
     rcu_read_unlock();
-    
+
     return pid;
 #endif
 }
@@ -552,21 +546,21 @@ EXPORT_SYMBOL_GPL(task_active_pid_ns);
  *
  * If there is a pid at nr this function is exactly the same as find_pid_ns.
  */
-// 수정 대상 함수
+
 struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
 {
 #ifndef CONFIG_PID_SKIPLIST
 	return idr_get_next(&ns->idr, &nr);
 #else
 	struct pid *pid;
-    
+
     if (unlikely(!ns || !ns->pid_sl.header))
         return NULL;
-    
+
     rcu_read_lock();
     pid = pid_skiplist_find_ge_rcu(&ns->pid_sl, nr);
     rcu_read_unlock();
-    
+
     return pid;
 #endif
 }
@@ -652,7 +646,6 @@ void __init pid_idr_init(void)
 #ifndef CONFIG_PID_SKIPLIST
 	idr_init(&init_pid_ns.idr);
 #else
-
 	pid_skiplist_init(&init_pid_ns.pid_sl, GFP_KERNEL);
 	init_pid_ns.last_pid = 0;
 
