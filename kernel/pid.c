@@ -230,7 +230,7 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 		if (start_pid < pid_min || start_pid >= pid_max)
 			start_pid = pid_min;
 
-		// ★ 빈 PID 찾기 (start_pid부터 pid_max까지)
+		//  빈 PID 찾기 (start_pid부터 pid_max까지)
 		nr = -1;
 		int scan;
 		for (scan = start_pid; scan < pid_max; scan++) {

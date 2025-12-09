@@ -55,7 +55,7 @@ void pid_rb_skiplist_init(struct pid_skiplist *sl, gfp_t gfp)
 	sl->header->pid = NULL;
 	memset(sl->header->forward, 0, max * sizeof(struct pid_sl_node *));
 
-	/* ★ RB-tree 초기화 */
+	/*  RB-tree 초기화 */
 	sl->top_rb_root = RB_ROOT;
 }
 
@@ -82,7 +82,7 @@ void pid_rb_skiplist_destroy(struct pid_skiplist *sl)
 	kfree(sl->header);
 }
 
-/* ★ RB-tree 헬퍼: 노드 삽입 */
+/*  RB-tree 헬퍼: 노드 삽입 */
 static void rb_insert_node(struct pid_skiplist *sl, struct pid_sl_node *node)
 {
 	struct rb_node **new = &sl->top_rb_root.rb_node;
@@ -105,7 +105,7 @@ static void rb_insert_node(struct pid_skiplist *sl, struct pid_sl_node *node)
 	node->in_rb_tree = true;
 }
 
-/* ★ RB-tree 헬퍼: key 이하의 가장 큰 노드 찾기 (lookup 시작점) */
+/*  RB-tree 헬퍼: key 이하의 가장 큰 노드 찾기 (lookup 시작점) */
 static struct pid_sl_node *rb_find_le(struct pid_skiplist *sl, int key)
 {
 	struct rb_node *node = sl->top_rb_root.rb_node;
@@ -132,7 +132,7 @@ int pid_skiplist_insert(struct pid_skiplist *sl, int key,
 	struct pid_sl_node *x;
 	int i, lvl;
 
-	/* ★ 1. 최상위 레벨: RB-tree로 시작점 찾기 */
+	/*  1. 최상위 레벨: RB-tree로 시작점 찾기 */
 	if (sl->level == sl->header->level) {
 		/* 최상위 레벨이 존재할 때만 RB-tree 사용 */
 		x = rb_find_le(sl, key);
@@ -140,7 +140,7 @@ int pid_skiplist_insert(struct pid_skiplist *sl, int key,
 		x = sl->header;
 	}
 
-	/* ★ 2. 나머지 레벨: 일반 skiplist 탐색 */
+	/*  2. 나머지 레벨: 일반 skiplist 탐색 */
 	for (i = sl->level - 1; i >= 0; i--) {
 		while (x->forward[i] && x->forward[i]->key < key)
 			x = x->forward[i];
@@ -149,13 +149,13 @@ int pid_skiplist_insert(struct pid_skiplist *sl, int key,
 
 	x = x->forward[0];
 
-	/* ★ 3. 이미 존재하면 pid만 교체 */
+	/*  3. 이미 존재하면 pid만 교체 */
 	if (x && x->key == key) {
 		WRITE_ONCE(x->pid, pid);
 		return 0;
 	}
 
-	/* ★ 4. 새 노드 생성 */
+	/*  4. 새 노드 생성 */
 	lvl = pid_sl_random_level();
 	if (lvl > sl->level) {
 		for (i = sl->level; i < lvl; i++)
@@ -170,13 +170,13 @@ int pid_skiplist_insert(struct pid_skiplist *sl, int key,
 	x->key = key;
 	WRITE_ONCE(x->pid, pid);
 
-	/* ★ 5. skiplist 링크 연결 */
+	/*  5. skiplist 링크 연결 */
 	for (i = 0; i < lvl; i++) {
 		x->forward[i] = update[i]->forward[i];
 		WRITE_ONCE(update[i]->forward[i], x);
 	}
 
-	/* ★ 6. 최상위 레벨이면 RB-tree에도 추가 */
+	/*  6. 최상위 레벨이면 RB-tree에도 추가 */
 	if (lvl == sl->level && lvl == sl->header->level) {
 		rb_insert_node(sl, x);
 	}
@@ -193,16 +193,16 @@ struct pid *pid_skiplist_lookup_rcu(const struct pid_skiplist *sl, int key)
 	if (!sl || !sl->header)
 		return NULL;
 
-	/* ★ 1. 최상위 레벨: RB-tree로 시작점 찾기 */
+	/*  1. 최상위 레벨: RB-tree로 시작점 찾기 */
 	x = rb_find_le((struct pid_skiplist *)sl, key);
 
-	/* ★ 2. 나머지 레벨: skiplist 탐색 */
+	/*  2. 나머지 레벨: skiplist 탐색 */
 	for (i = sl->level - 1; i >= 0; i--) {
 		while ((next = READ_ONCE(x->forward[i])) != NULL && next->key < key)
 			x = next;
 	}
 
-	/* ★ 3. 레벨 0에서 확인 */
+	/*  3. 레벨 0에서 확인 */
 	next = READ_ONCE(x->forward[0]);
 	if (next && next->key == key)
 		return READ_ONCE(next->pid);
@@ -227,10 +227,10 @@ void pid_skiplist_remove(struct pid_skiplist *sl, int key)
 	if (!sl || !sl->header)
 		return;
 
-	/* ★ 1. 최상위 레벨: RB-tree로 시작점 찾기 */
+	/*  1. 최상위 레벨: RB-tree로 시작점 찾기 */
 	x = rb_find_le(sl, key);
 
-	/* ★ 2. skiplist 탐색 */
+	/*  2. skiplist 탐색 */
 	for (i = sl->level - 1; i >= 0; i--) {
 		while (x->forward[i] && x->forward[i]->key < key)
 			x = x->forward[i];
@@ -242,27 +242,27 @@ void pid_skiplist_remove(struct pid_skiplist *sl, int key)
 	if (!x || x->key != key)
 		return;
 
-	/* ★ 3. RB-tree에서 제거 (최상위 레벨이면) */
+	/*  3. RB-tree에서 제거 (최상위 레벨이면) */
 	if (x->in_rb_tree) {
 		rb_erase(&x->rb_node, &sl->top_rb_root);
 		x->in_rb_tree = false;
 	}
 
-	/* ★ 4. skiplist 링크 제거 */
+	/*  4. skiplist 링크 제거 */
 	for (i = 0; i < sl->level; i++) {
 		if (update[i]->forward[i] != x)
 			break;
 		WRITE_ONCE(update[i]->forward[i], x->forward[i]);
 	}
 
-	/* ★ 5. 레벨 조정 */
+	/*  5. 레벨 조정 */
 	new_level = sl->level;
 	while (new_level > 1 && !READ_ONCE(sl->header->forward[new_level - 1]))
 		new_level--;
 	if (new_level != sl->level)
 		WRITE_ONCE(sl->level, new_level);
 
-	/* ★ 6. RCU 해제 */
+	/*  6. RCU 해제 */
 	call_rcu(&x->rcu, pid_sl_node_rcu_free);
 }
 
@@ -276,7 +276,7 @@ struct pid *pid_skiplist_iter_next_rcu(const struct pid_skiplist *sl,
 		return NULL;
 
 	if (!*cursor) {
-		/* ★ 첫 호출: RB-tree + skiplist로 start_key 이상 찾기 */
+		/*  첫 호출: RB-tree + skiplist로 start_key 이상 찾기 */
 		node = rb_find_le((struct pid_skiplist *)sl, start_key);
 
 		int i;
@@ -314,7 +314,7 @@ struct pid *pid_skiplist_find_ge_rcu(const struct pid_skiplist *sl, int key)
 	if (!sl || !sl->header)
 		return NULL;
 
-	/* ★ RB-tree + skiplist로 key 이상의 첫 노드 찾기 */
+	/*  RB-tree + skiplist로 key 이상의 첫 노드 찾기 */
 	node = rb_find_le((struct pid_skiplist *)sl, key);
 
 	for (i = sl->level - 1; i >= 0; i--) {
